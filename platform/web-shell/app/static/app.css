@@ -416,6 +416,20 @@ body.auth {
     color: var(--text-dim);
 }
 
+.note {
+    margin: 20px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-dim);
+}
+
+.note .mono {
+    font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color: var(--brand-bright);
+}
+
 .page-head {
     display: flex;
     align-items: flex-start;
