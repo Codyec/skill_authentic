@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} · {{ brand }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+
+<body class="app">
+    {% set role_labels = {"admin": "Administrador", "supervisor": "Supervisor", "operador": "Operador"} %}
+
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/dashboard">
+                <img src="/static/{{ logo }}" alt="{{ brand }}">
+                <span>{{ brand }}</span>
+            </a>
+            <div class="topbar-right">
+                {% if user %}
+                <div class="user">
+                    <span class="avatar">{{ (user.get("preferred_username") or "U")[0] | upper }}</span>
+                    <span class="user-name">{{ user.get("preferred_username", "Usuario") }}</span>
+                </div>
+                {% endif %}
+                <a class="btn btn-ghost" href="/logout">Salir</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="page page-wide">
+        <nav class="crumbs"><a href="/dashboard">Panel</a> / <span>Usuarios</span></nav>
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">Usuarios</h1>
+                <p class="lead">Gestión de cuentas y permisos de la plataforma.</p>
+            </div>
+            <div class="page-head-actions">
+                <a class="btn btn-ghost" href="/admin/grupos">Gestionar grupos</a>
+                <button class="btn btn-primary" onclick="document.getElementById('dlg-new').showModal()">Nuevo usuario</button>
+            </div>
+        </div>
+
+        {% if not edit_id and msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
+        {% if not edit_id and err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
+
+        <section class="panel">
+            <h2>{{ users | length }} usuario(s)</h2>
+            <p class="section-help">Pulsa «Editar» en cualquier usuario para cambiar sus datos, roles, grupos o contraseña.</p>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr><th>Usuario</th><th>Nombre</th><th>Correo</th><th>Estado</th><th>Roles</th><th>Grupos</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    {% for u in users %}
+                        <tr>
+                            <td class="mono">{{ u.username }}</td>
+                            <td>{{ ((u.firstName or "") ~ " " ~ (u.lastName or "")) | trim or "—" }}</td>
+                            <td>{{ u.email or "—" }}</td>
+                            <td><span class="badge {{ 'badge-on' if u.enabled else 'badge-off' }}">{{ "Activo" if u.enabled else "Inactivo" }}</span></td>
+                            <td>
+                                {% set shown_roles = u.effective_roles or u.realm_roles %}
+                                {% if shown_roles %}
+                                    {% for r in shown_roles %}<span class="badge">{{ role_labels.get(r, r) }}</span>{% endfor %}
+                                {% else %}<span class="muted">—</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if u.groups %}
+                                    {% for g in u.groups %}<span class="badge">{{ g.name }}</span>{% endfor %}
+                                {% else %}<span class="muted">—</span>{% endif %}
+                            </td>
+                            <td class="row-actions">
+                                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dlg-{{ u.id }}').showModal()">Editar</button>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="empty">Sin usuarios.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- ============ Diálogo: nuevo usuario ============ -->
+    <dialog id="dlg-new" class="modal">
+        <form method="dialog" class="modal-head">
+            <h2>Nuevo usuario</h2>
+            <button class="modal-x" value="cancel" aria-label="Cerrar">×</button>
+        </form>
+        <div class="modal-body">
+            <form method="post" action="/admin/usuarios" class="stack">
+                <label>Usuario<input name="username" required autocomplete="off"></label>
+                <label>Nombre<input name="first_name" autocomplete="off"></label>
+                <label>Apellido<input name="last_name" autocomplete="off"></label>
+                <label>Correo<input name="email" type="email" autocomplete="off"></label>
+                <label>Contraseña<input name="password" type="text" required autocomplete="off"></label>
+                <label>Rol inicial
+                    <select name="role">
+                        <option value="">Sin rol</option>
+                        {% for r in assignable_roles %}<option value="{{ r }}">{{ role_labels.get(r, r) }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" name="temporary" checked> Debe cambiar la contraseña la primera vez que entre</label>
+                <button class="btn btn-primary" type="submit">Crear usuario</button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ============ Diálogo por usuario: editar ============ -->
+    {% for u in users %}
+    {% set member_ids = u.groups | map(attribute="id") | list %}
+    <dialog id="dlg-{{ u.id }}" class="modal">
+        <form method="dialog" class="modal-head">
+            <h2>Editar usuario</h2>
+            <div class="modal-sub mono">{{ u.username }}</div>
+            <button class="modal-x" value="cancel" aria-label="Cerrar">×</button>
+        </form>
+        <div class="modal-body">
+            {% if edit_id == u.id and msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
+            {% if edit_id == u.id and err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
+
+            <section class="modal-section">
+                <h3>Datos</h3>
+                <form method="post" action="/admin/usuarios/{{ u.id }}/perfil" class="stack">
+                    <input type="hidden" name="edit" value="{{ u.id }}">
+                    <input type="hidden" name="enabled" value="{{ 'true' if u.enabled else 'false' }}">
+                    <label>Nombre<input name="first_name" value="{{ u.firstName or '' }}" autocomplete="off"></label>
+                    <label>Apellido<input name="last_name" value="{{ u.lastName or '' }}" autocomplete="off"></label>
+                    <label>Correo<input name="email" type="email" value="{{ u.email or '' }}" autocomplete="off"></label>
+                    <button class="btn btn-primary" type="submit">Guardar datos</button>
+                </form>
+            </section>
+
+            <section class="modal-section">
+                <h3>Estado</h3>
+                <div class="inline">
+                    <span class="badge {{ 'badge-on' if u.enabled else 'badge-off' }}">{{ "Activo" if u.enabled else "Inactivo" }}</span>
+                    <form method="post" action="/admin/usuarios/{{ u.id }}/estado">
+                        <input type="hidden" name="edit" value="{{ u.id }}">
+                        <input type="hidden" name="enabled" value="{{ 'false' if u.enabled else 'true' }}">
+                        <button class="btn btn-ghost" type="submit">{{ "Desactivar" if u.enabled else "Activar" }} cuenta</button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="modal-section">
+                <h3>Roles</h3>
+                <p class="section-help">Los roles superiores incluyen a los inferiores: <b>Administrador</b> ▸ <b>Supervisor</b> ▸ <b>Operador</b>. Los marcados con ↳ vienen incluidos por un rol superior y no se quitan por separado.</p>
+                <div class="chips">
+                {% for r in assignable_roles %}
+                    {% set direct = r in u.realm_roles %}
+                    {% set inherited = (r in u.effective_roles) and not direct %}
+                    {% if inherited %}
+                        <span class="chip chip-locked" title="Incluido por un rol superior">↳ {{ role_labels.get(r, r) }}</span>
+                    {% else %}
+                        <form method="post" action="/admin/usuarios/{{ u.id }}/roles">
+                            <input type="hidden" name="edit" value="{{ u.id }}">
+                            <input type="hidden" name="role" value="{{ r }}">
+                            <input type="hidden" name="action" value="{{ 'remove' if direct else 'add' }}">
+                            <button class="chip {{ 'chip-on' if direct else '' }}" type="submit">{% if direct %}✓ {% endif %}{{ role_labels.get(r, r) }}</button>
+                        </form>
+                    {% endif %}
+                {% endfor %}
+                </div>
+            </section>
+
+            <section class="modal-section">
+                <h3>Grupos</h3>
+                <p class="section-help">A qué áreas o equipos pertenece.</p>
+                <div class="chips">
+                {% for g in u.groups %}
+                    <form method="post" action="/admin/usuarios/{{ u.id }}/grupos">
+                        <input type="hidden" name="edit" value="{{ u.id }}">
+                        <input type="hidden" name="group_id" value="{{ g.id }}">
+                        <input type="hidden" name="action" value="remove">
+                        <button class="chip chip-on" type="submit" title="Quitar de {{ g.name }}">✓ {{ g.name }}</button>
+                    </form>
+                {% else %}
+                    <span class="muted">Sin grupos.</span>
+                {% endfor %}
+                </div>
+                {% set ns = namespace(any=false) %}
+                {% for g in all_groups if g.id not in member_ids %}{% set ns.any = true %}{% endfor %}
+                {% if ns.any %}
+                <form method="post" action="/admin/usuarios/{{ u.id }}/grupos" class="inline">
+                    <input type="hidden" name="edit" value="{{ u.id }}">
+                    <input type="hidden" name="action" value="add">
+                    <select name="group_id">
+                        {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ "  " * g.depth }}{{ g.pretty }}</option>{% endfor %}
+                    </select>
+                    <button class="btn btn-ghost" type="submit">Añadir a grupo</button>
+                </form>
+                {% endif %}
+            </section>
+
+            <section class="modal-section">
+                <h3>Contraseña</h3>
+                <form method="post" action="/admin/usuarios/{{ u.id }}/password" class="stack">
+                    <input type="hidden" name="edit" value="{{ u.id }}">
+                    <label>Nueva contraseña<input name="password" type="text" required autocomplete="off"></label>
+                    <label class="check"><input type="checkbox" name="temporary" checked> Debe cambiarla la próxima vez que entre</label>
+                    <button class="btn btn-ghost" type="submit">Cambiar contraseña</button>
+                </form>
+            </section>
+
+            <section class="modal-section danger">
+                <h3>Eliminar</h3>
+                <p class="section-help">Se borra la cuenta de forma permanente.</p>
+                <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar"
+                      onsubmit="return confirm('¿Eliminar a {{ u.username }}? Esta acción no se puede deshacer.');">
+                    <button class="btn btn-danger" type="submit">Eliminar usuario</button>
+                </form>
+            </section>
+        </div>
+    </dialog>
+    {% endfor %}
+
+    <script>
+        // Cerrar al hacer clic en el fondo del diálogo.
+        document.querySelectorAll("dialog.modal").forEach(function (d) {
+            d.addEventListener("click", function (e) {
+                if (e.target === d) { d.close(); }
+            });
+        });
+        // Reabrir el diálogo del usuario recién editado (para ver el aviso).
+        {% if edit_id %}
+        window.addEventListener("DOMContentLoaded", function () {
+            var d = document.getElementById("dlg-{{ edit_id }}");
+            if (d) { d.showModal(); }
+        });
+        {% endif %}
+    </script>
+</body>
+</html>

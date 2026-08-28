@@ -1,0 +1,56 @@
+{
+  "realm": "__REALM__",
+  "enabled": true,
+  "displayName": "__BRAND__",
+  "loginTheme": "__SLUG__",
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrador del sistema",
+        "composite": true,
+        "composites": { "realm": ["supervisor"] }
+      },
+      {
+        "name": "supervisor",
+        "description": "Supervisor de operación",
+        "composite": true,
+        "composites": { "realm": ["operador"] }
+      },
+      {
+        "name": "operador",
+        "description": "Operador del sistema"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "__SLUG__-app",
+      "name": "__BRAND__",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:__WEB_PORT__",
+      "baseUrl": "http://localhost:__WEB_PORT__",
+      "redirectUris": ["http://localhost:__WEB_PORT__/*"],
+      "webOrigins": ["http://localhost:__WEB_PORT__"],
+      "attributes": { "pkce.code.challenge.method": "S256" }
+    }
+  ],
+  "groups": [
+    {
+      "name": "platform-admins",
+      "path": "/platform-admins",
+      "realmRoles": ["admin"],
+      "clientRoles": {
+        "realm-management": [
+          "manage-realm", "manage-users", "query-groups",
+          "query-users", "view-realm", "view-users"
+        ]
+      }
+    }
+  ]
+}

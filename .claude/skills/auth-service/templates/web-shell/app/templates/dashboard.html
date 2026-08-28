@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+
+<body class="app">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/dashboard">
+                <img src="/static/{{ logo }}" alt="{{ brand }}">
+                <span>{{ brand }}</span>
+            </a>
+
+            <div class="topbar-right">
+                <span class="status"><i class="dot"></i> Sistema operativo</span>
+
+                {% if user %}
+                <div class="user">
+                    <span class="avatar">{{ (user.get("preferred_username") or "U")[0] | upper }}</span>
+                    <span class="user-name">{{ user.get("preferred_username", "Usuario") }}</span>
+                </div>
+                {% endif %}
+
+                <a class="btn btn-ghost" href="/logout">Salir</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="welcome">
+            <p class="eyebrow">Panel principal</p>
+            <h1>Hola, {{ user.get("given_name") or user.get("preferred_username", "Usuario") }}</h1>
+            <p class="lead">Selecciona un módulo para comenzar.</p>
+        </section>
+
+        <section class="menu-grid">
+            {% for item in menu %}
+            <a class="menu-card{% if not item.enabled %} is-disabled{% endif %}" href="{{ item.href }}">
+                <span class="menu-card-tag">{{ item.id }}</span>
+                <h3>{{ item.title }}</h3>
+                <p>{{ item.description }}</p>
+                <span class="menu-card-cta">{{ "Abrir" if item.enabled else "Próximamente" }}</span>
+            </a>
+            {% endfor %}
+        </section>
+    </main>
+</body>
+</html>

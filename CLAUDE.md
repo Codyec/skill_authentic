@@ -14,10 +14,15 @@ It contains four independent parts that are *not* wired together into a single b
 | `services/camera-service/` | Camera control/streaming service for MindVision/MVCAMSDK GigE cameras | Native (Windows today) |
 | `apps/camera-yolo/` | Demo app: camera + YOLO26 object detection, consumes the camera directly | Native (Windows + CUDA) |
 | `vendor/mindvision-sdk/` | Vendored camera SDK: `libMVSDK.so` (x64/arm64), headers, `install.sh`, GenTL, v4l2 | — |
+| `.claude/skills/auth-service/` | Skill that scaffolds a standalone auth stack (Postgres + Keycloak + web-shell) for a new project; also installed at `~/.claude/skills/` | — |
 | `docs/` | `architecture.md` (full A–F analysis), `camera-hardware.md`, `roadmap-skill.md` (phased plan) | — |
 
-Long-term intent (see `docs/roadmap-skill.md`): the `platform/` layer becomes a reusable Claude Code
-skill so new company projects start with auth + menu + admin out of the box.
+`platform/web-shell` + `infra/keycloak/themes/demacya` are the **master copy** of the
+`auth-service` skill templates. After improving them, run
+`python .claude/skills/auth-service/scripts/update-templates.py` and re-copy the skill folder
+to `~/.claude/skills/`. The skill templates are generic (brand via env / Jinja globals
+`brand`/`logo`/`tagline`); keep it that way — no `DEMACYA`/`Logo_DEMA` literals in
+`templates/web-shell/`.
 
 ## Commands
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+
+<body class="auth">
+    <main class="auth-card">
+        <img class="auth-logo" src="/static/{{ logo }}" alt="{{ brand }}">
+
+        <p class="eyebrow">{{ tagline }}</p>
+        <h1>Plataforma {{ brand }}</h1>
+        <p class="lead">Acceso al panel de la plataforma.</p>
+
+        <a class="btn btn-primary" href="/login">Iniciar sesión</a>
+
+        <p class="auth-foot">Acceso protegido de {{ brand }}</p>
+    </main>
+</body>
+</html>

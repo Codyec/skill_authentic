@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} · {{ brand }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+
+<body class="app">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/dashboard">
+                <img src="/static/{{ logo }}" alt="{{ brand }}">
+                <span>{{ brand }}</span>
+            </a>
+            <div class="topbar-right">
+                {% if user %}
+                <div class="user">
+                    <span class="avatar">{{ (user.get("preferred_username") or "U")[0] | upper }}</span>
+                    <span class="user-name">{{ user.get("preferred_username", "Usuario") }}</span>
+                </div>
+                {% endif %}
+                <a class="btn btn-ghost" href="/logout">Salir</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="page page-wide">
+        <nav class="crumbs"><a href="/dashboard">Panel</a> / <span>Proceso</span></nav>
+        <h1 class="page-title">Proceso</h1>
+        <p class="lead">Sección de ejemplo. Reemplaza esta página por el contenido real del proyecto.</p>
+
+        <section class="panel">
+            <p class="section-help">
+                Esta ruta (<span class="mono">/proceso</span> en <span class="mono">app/main.py</span>)
+                solo es visible para quien tiene el rol <b>Operador</b> o superior. Copia este patrón
+                para cada sección nueva: ruta protegida por rol + plantilla + entrada en
+                <span class="mono">MAIN_MENU</span>.
+            </p>
+        </section>
+    </main>
+</body>
+</html>

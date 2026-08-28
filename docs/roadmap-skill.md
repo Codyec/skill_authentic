@@ -36,12 +36,27 @@ Estructura de monorepo, cámara aislada en `services/camera-service/`, SDK vendo
 - API `/api/v1` + `/capabilities` + `/health`; entrega MJPEG + bus.
 - `Dockerfile` Linux real + `docker-compose.yml` con `network_mode: host`.
 
-## Fase 5 — Empaquetar como skill
+## Fase 5 — Empaquetar como skill  (HECHO para auth)
 
-Crear `.claude/skills/`:
+`.claude/skills/auth-service/` — genera un proyecto autónomo (Postgres + Keycloak + web-shell
+FastAPI) parametrizado por `slug / realm / marca / puertos / logo`.
 
-- `demacya-platform-init/` — instrucciones + `templates/` del monorepo (infra + web-shell + auth).
-- `demacya-camera-service/` — instrucciones para añadir el servicio de cámara a un proyecto.
+- `SKILL.md` — cuándo se dispara + pasos (scaffold, `docker compose up`, verificación,
+  primer usuario, cómo añadir secciones).
+- `templates/` — `docker-compose.yml` combinado, `keycloak/import/realm.json`
+  (roles jerárquicos + grupo `platform-admins` + cliente OIDC + tema), `web-shell/` (copia
+  genérica de `platform/web-shell` — marca vía globals de Jinja `brand`/`logo`/`tagline`).
+- `scripts/scaffold.py` — copia + sustituye marcadores `__SLUG__` etc + genera `.env` con secretos.
+- `scripts/update-templates.py` — re-sincroniza los templates desde el repo (copia maestra).
 
-Cada skill: `SKILL.md` con pasos, `templates/` con los archivos parametrizables, y un checklist de
-verificación (levantar compose, `/health`, login OIDC de punta a punta).
+Instalada también en `~/.claude/skills/auth-service/` para dispararse en cualquier proyecto.
+Para actualizarla: mejorar `platform/web-shell` / `infra/keycloak/themes/demacya`, correr
+`update-templates.py`, y volver a copiar la carpeta a `~/.claude/skills/`.
+
+Pendiente: `camera-service` como skill (tras la Fase 4).
+
+### Mejora opcional anotada
+
+Migrar la instancia DEMACYA en marcha al `docker-compose.yml` único de la skill
+(hoy usa los dos compose `infra/keycloak` + `platform/web-shell` con `host.docker.internal`).
+Implica recrear contenedores; el volumen de Postgres tiene datos manuales (usuarios, grupos).
