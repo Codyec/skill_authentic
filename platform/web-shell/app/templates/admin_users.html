@@ -66,7 +66,7 @@
         <!-- Listado -->
         <section class="panel">
             <h2>{{ users | length }} usuario(s)</h2>
-            <p class="hint">Etiqueta con borde = rol sin asignar (clic para asignar) · etiqueta rellena = rol asignado (clic para quitar).</p>
+            <p class="hint">Roles: etiqueta con borde = sin asignar (clic para asignar), rellena = asignada (clic para quitar). Grupos: clic en un grupo para quitarlo; usa <b>⋯</b> para añadir a un grupo o cambiar la contraseña.</p>
             <div class="table-wrap">
                 <table class="table">
                     <thead>
@@ -100,8 +100,9 @@
                                 {% endfor %}
                                 </div>
                             </td>
+                            {% set member_ids = u.groups | map(attribute="id") | list %}
                             <td>
-                                {% set member_ids = u.groups | map(attribute="id") | list %}
+                                {% if u.groups %}
                                 <div class="roles">
                                 {% for g in u.groups %}
                                     <form method="post" action="/admin/usuarios/{{ u.id }}/grupos">
@@ -111,22 +112,25 @@
                                     </form>
                                 {% endfor %}
                                 </div>
-                                {% set ns = namespace(any=false) %}
-                                {% for g in all_groups if g.id not in member_ids %}{% set ns.any = true %}{% endfor %}
-                                {% if ns.any %}
-                                <form method="post" action="/admin/usuarios/{{ u.id }}/grupos" class="group-add">
-                                    <input type="hidden" name="action" value="add">
-                                    <select name="group_id">
-                                        {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ g.path or g.name }}</option>{% endfor %}
-                                    </select>
-                                    <button class="tag tag-off" type="submit">+ añadir</button>
-                                </form>
+                                {% else %}
+                                <span class="muted">—</span>
                                 {% endif %}
                             </td>
                             <td class="row-actions">
                                 <details class="menu-pop">
                                     <summary>⋯</summary>
                                     <div class="pop">
+                                        {% set ns = namespace(any=false) %}
+                                        {% for g in all_groups if g.id not in member_ids %}{% set ns.any = true %}{% endfor %}
+                                        {% if ns.any %}
+                                        <form method="post" action="/admin/usuarios/{{ u.id }}/grupos" class="pop-form">
+                                            <select name="group_id">
+                                                {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ g.path or g.name }}</option>{% endfor %}
+                                            </select>
+                                            <input type="hidden" name="action" value="add">
+                                            <button class="btn btn-ghost" type="submit">Añadir a grupo</button>
+                                        </form>
+                                        {% endif %}
                                         <form method="post" action="/admin/usuarios/{{ u.id }}/password" class="pop-form">
                                             <input name="password" type="text" placeholder="Nueva contraseña" required>
                                             <label class="check"><input type="checkbox" name="temporary" checked> temporal</label>
