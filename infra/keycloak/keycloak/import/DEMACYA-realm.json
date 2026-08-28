@@ -2,7 +2,6 @@
   "realm": "DEMACYA",
   "enabled": true,
   "displayName": "DEMACYA",
-
   "roles": {
     "realm": [
       {
@@ -19,7 +18,6 @@
       }
     ]
   },
-
   "clients": [
     {
       "clientId": "demacya-app",
@@ -43,5 +41,6 @@
         "pkce.code.challenge.method": "S256"
       }
     }
-  ]
+  ],
+  "loginTheme": "demacya"
 }

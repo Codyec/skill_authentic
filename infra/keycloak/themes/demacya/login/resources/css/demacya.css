@@ -1,0 +1,110 @@
+/* ============================================================
+   DEMACYA — tema de login para Keycloak (parent: keycloak.v2)
+   Fondo oscuro con rejilla técnica + halo azul, logo DEMA,
+   acento #1f83d6. La tarjeta se mantiene clara (legible y sobria).
+   ============================================================ */
+
+:root {
+    --dema-blue: #1f83d6;
+    --dema-blue-bright: #38a0ee;
+    --dema-bg: #070b13;
+}
+
+/* ---- Fondo ------------------------------------------------- */
+
+html,
+body,
+body.login-pf,
+.login-pf-page,
+.login-pf-page.login-pf-page-header {
+    background: var(--dema-bg) !important;
+}
+
+/* La imagen poligonal por defecto de Keycloak */
+body.login-pf {
+    background-image: none !important;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(920px 520px at 50% -12%, rgba(31, 131, 214, 0.18), transparent 70%),
+        linear-gradient(rgba(120, 150, 200, 0.06) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(90deg, rgba(120, 150, 200, 0.06) 1px, transparent 1px) 0 0 / 44px 44px;
+}
+
+.login-pf-page {
+    position: relative;
+    z-index: 1;
+}
+
+/* ---- Encabezado: logo en vez del nombre del realm --------- */
+
+#kc-header,
+#kc-header-wrapper {
+    color: transparent !important;
+    font-size: 0 !important;
+    text-shadow: none !important;
+}
+
+#kc-header-wrapper {
+    display: block;
+    height: 66px;
+    margin-bottom: 10px;
+    background: url(../img/logo.png) center center / contain no-repeat;
+    filter: drop-shadow(0 0 22px rgba(31, 131, 214, 0.35));
+}
+
+/* ---- Tarjeta --------------------------------------------- */
+
+.card-pf,
+.pf-v5-c-login__main,
+.pf-c-login__main {
+    border-top: 3px solid var(--dema-blue) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+#kc-page-title {
+    font-weight: 600;
+}
+
+/* ---- Botón primario ------------------------------------- */
+
+#kc-login,
+input[type="submit"].pf-v5-c-button.pf-m-primary,
+.pf-v5-c-button.pf-m-primary,
+.pf-c-button.pf-m-primary,
+.btn-primary {
+    background-color: var(--dema-blue) !important;
+    border-color: var(--dema-blue) !important;
+}
+
+#kc-login:hover,
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:hover,
+.btn-primary:hover {
+    background-color: var(--dema-blue-bright) !important;
+    border-color: var(--dema-blue-bright) !important;
+}
+
+/* ---- Enlaces ------------------------------------------- */
+
+a,
+#kc-registration a,
+#kc-info-wrapper a {
+    color: var(--dema-blue-bright);
+}
+
+/* ---- Campos con foco ---------------------------------- */
+
+input:focus,
+.pf-v5-c-form-control:focus,
+.pf-c-form-control:focus {
+    border-color: var(--dema-blue) !important;
+    box-shadow: 0 0 0 1px var(--dema-blue) !important;
+}

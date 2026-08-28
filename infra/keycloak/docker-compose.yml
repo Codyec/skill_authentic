@@ -46,6 +46,9 @@ services:
 
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import:ro
+      # Tema de login con la identidad DEMA. start-dev no cachea temas:
+      # editar el CSS y recargar el navegador basta.
+      - ./themes/demacya:/opt/keycloak/themes/demacya:ro
 
     depends_on:
       postgres:
