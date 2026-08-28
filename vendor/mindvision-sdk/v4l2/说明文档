@@ -1,0 +1,23 @@
+编译V4L2，创建虚拟串口
+命令: sudo ./install.sh
+
+编译mv_v4l2,opencv_demo
+命令:cd mv_v4l2
+	 cmake .
+	 make
+	 
+	 cd opencv_demo
+	 cmake .
+	 make
+
+
+单独开启终端，运行mv_v4l2
+
+单独开启终端，运行opencv_demo
+
+
+mv_v4l2，负责使用MVSDK采集图像，写入到虚拟串口/dev/video0
+
+opencv_demo，循环打开/dev/video0，打开之后采集图像，显示
+	  
+

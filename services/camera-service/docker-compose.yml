@@ -1,0 +1,36 @@
+# =============================================================================
+# PLANTILLA — NO FUNCIONAL TODAVÍA (ver Dockerfile y ../../docs/camera-hardware.md)
+# =============================================================================
+# Construir el contexto desde la raíz del monorepo:
+#   docker compose -f services/camera-service/docker-compose.yml up
+# =============================================================================
+
+services:
+  camera-service:
+    build:
+      context: ../..
+      dockerfile: services/camera-service/Dockerfile
+      args:
+        SDK_ARCH: x64
+    container_name: demacya-camera-service
+    restart: unless-stopped
+
+    # GigE Vision necesita la red del host para el descubrimiento por broadcast.
+    network_mode: host
+
+    # Socket raw para el protocolo GigE.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    volumes:
+      # Persistencia de parámetros del SDK (equivalente Linux del registro de Windows).
+      - camera-sdk-config:/root/.config
+      # Configuración declarativa de la cámara (Fase 4).
+      # - ./camera.yaml:/app/camera.yaml:ro
+
+    # environment:
+    #   - CAMERA_IP=192.168.0.216
+
+volumes:
+  camera-sdk-config:

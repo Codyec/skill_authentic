@@ -1,0 +1,4 @@
+# Dependencias Python del servicio de cámara (legacy).
+# El SDK nativo (libMVSDK.so / MVCAMSDK_X64.dll) NO es pip: se instala aparte.
+numpy
+opencv-python-headless

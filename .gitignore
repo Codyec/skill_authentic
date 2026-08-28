@@ -15,6 +15,20 @@ venv/
 vendor/mindvision-sdk/archives/
 *.tar.gz
 
+# Solo se versionan las libs nativas de las arquitecturas de despliegue (x64, arm64).
+# El resto queda en disco pero fuera de git (ver vendor/mindvision-sdk/README.md).
+vendor/mindvision-sdk/linux/lib/x86/
+vendor/mindvision-sdk/linux/lib/arm/
+vendor/mindvision-sdk/linux/lib/arm_softfp/
+
+# v4l2loopback: módulo GPL upstream que el fabricante empaqueta. Se deja en disco
+# pero fuera de git (fuente completa en archives/mv_v4l2.tar.gz). Lo propio del
+# fabricante (mv_v4l2/, opencv_demo/, install.sh) sí se versiona.
+vendor/mindvision-sdk/v4l2/v4l2loopback/
+
+# Config local del harness
+.claude/settings.local.json
+
 # Artefactos de build C/C++ del SDK
 *.o
 *.obj
