@@ -27,12 +27,27 @@ Se agregan/quitan por proyecto. Los `admin_only` solo se ven si el usuario es ad
   **`platform-admins`** (Realm settings → Groups) o asignarle el rol `admin`.
 - Permite: crear usuario (con contraseña temporal), habilitar/deshabilitar, cambiar
   contraseña, eliminar y asignar/quitar los roles `admin` / `supervisor` / `operador`.
+- La edición de cada usuario ocurre en un diálogo modal con secciones
+  (Datos · Estado · Roles · Grupos · Contraseña · Eliminar).
+
+### Jerarquía de roles
+
+Los roles son **compuestos**: `admin` ▸ `supervisor` ▸ `operador`. Quien tiene `admin`
+hereda `supervisor` y `operador`; quien tiene `supervisor` hereda `operador`. En el
+diálogo, los roles heredados salen con `↳` y no se quitan por separado.
+
+- Instalaciones nuevas: ya viene configurado en `DEMACYA-realm.json`
+  (`composites.realm`).
+- Instancia ya creada: en la consola de Keycloak → *Realm roles* → `admin` →
+  pestaña *Associated roles* → *Assign role* → `supervisor`. Repetir con
+  `supervisor` → `operador`. Después, cerrar sesión y volver a entrar.
 
 ## Grupos (`/admin/grupos`)
 
-- Listar grupos con su nº de miembros y **crear / eliminar** grupos.
-- La **pertenencia** de cada usuario se edita en la columna *Grupos* de `/admin/usuarios`
-  (chips para quitar, desplegable para añadir).
+- Árbol de grupos con **subgrupos** (p. ej. `Producción → Turno A`), nº de miembros,
+  y **crear / eliminar** (crear pide "dentro de" un grupo padre o "Grupo principal").
+- La **pertenencia** de cada usuario se asigna en el diálogo de edición del usuario
+  (sección *Grupos*: fichas para quitar, desplegable jerárquico para añadir).
 - Ver y editar la pertenencia solo necesita `manage-users` + `query-groups`.
   **Crear o eliminar** un grupo necesita el permiso `manage-realm` de Keycloak.
 - Qué roles otorga cada grupo se configura en la consola de Keycloak (fuera de este panel).

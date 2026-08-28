@@ -542,6 +542,19 @@ async def _load_users(request):
             else []
         )
 
+        # Roles efectivos (incluye los heredados por jerarquía de roles).
+        eff = await kc_admin(
+            request, "GET", f"/users/{u['id']}/role-mappings/realm/composite"
+        )
+        u["effective_roles"] = (
+            sorted(
+                x["name"] for x in eff.json()
+                if x["name"] in ASSIGNABLE_ROLES
+            )
+            if eff is not None and eff.status_code == 200
+            else list(u["realm_roles"])
+        )
+
         g = await kc_admin(request, "GET", f"/users/{u['id']}/groups")
         u["groups"] = (
             [
@@ -554,34 +567,54 @@ async def _load_users(request):
     return users
 
 
+def _pretty_path(path):
+    """/Produccion/Turno A  ->  Produccion / Turno A"""
+    return " / ".join(p for p in (path or "").split("/") if p)
+
+
 async def _load_groups(request):
-    """Lista los grupos del realm con su nº de miembros."""
+    """Árbol de grupos del realm (plano, con profundidad) y nº de miembros."""
     resp = await kc_admin(
         request, "GET", "/groups",
-        params={"briefRepresentation": "true", "max": 200},
+        params={"briefRepresentation": "false", "max": 500},
     )
     if resp is None or resp.status_code != 200:
         return None
 
-    groups = []
+    flat = []
 
-    def flatten(items):
-        for it in items:
-            groups.append(it)
-            if it.get("subGroups"):
-                flatten(it["subGroups"])
+    async def walk(node, depth):
+        item = {
+            "id": node["id"],
+            "name": node["name"],
+            "path": node.get("path", "/" + node["name"]),
+            "pretty": _pretty_path(node.get("path", "/" + node["name"])),
+            "depth": depth,
+        }
+        flat.append(item)
 
-    flatten(resp.json())
+        children = node.get("subGroups")
+        if children is None and node.get("subGroupCount"):
+            c = await kc_admin(
+                request, "GET", f"/groups/{node['id']}/children",
+                params={"briefRepresentation": "false", "max": 500},
+            )
+            children = c.json() if c is not None and c.status_code == 200 else []
 
-    for grp in groups:
+        for child in children or []:
+            await walk(child, depth + 1)
+
+    for root in resp.json():
+        await walk(root, 0)
+
+    for grp in flat:
         m = await kc_admin(
-            request, "GET", f"/groups/{grp['id']}/members",
-            params={"max": 1000},
+            request, "GET", f"/groups/{grp['id']}/members", params={"max": 1000},
         )
         grp["member_count"] = (
             len(m.json()) if m is not None and m.status_code == 200 else "?"
         )
-    return groups
+    return flat
 
 
 @app.get("/admin/usuarios", response_class=HTMLResponse)
@@ -867,7 +900,11 @@ async def admin_groups(request: Request, msg: str = "", err: str = ""):
 
 
 @app.post("/admin/grupos")
-async def admin_groups_create(request: Request, name: str = Form(...)):
+async def admin_groups_create(
+    request: Request,
+    name: str = Form(...),
+    parent_id: str = Form(""),
+):
     _, deny = _require_admin(request)
     if deny:
         return deny
@@ -876,12 +913,19 @@ async def admin_groups_create(request: Request, name: str = Form(...)):
     if not name:
         return _redir_groups(err="El nombre del grupo no puede estar vacío.")
 
-    resp = await kc_admin(request, "POST", "/groups", json={"name": name})
+    if parent_id:
+        path = f"/groups/{parent_id}/children"
+    else:
+        path = "/groups"
+
+    resp = await kc_admin(request, "POST", path, json={"name": name})
     if resp is not None and resp.status_code == 403:
         return _redir_groups(err=_NEED_MANAGE_REALM)
     if resp is None or resp.status_code not in (201, 204):
         return _redir_groups(err=_kc_error(resp, "No se pudo crear el grupo"))
-    return _redir_groups(msg=f"Grupo '{name}' creado.")
+    return _redir_groups(
+        msg=f"Grupo '{name}' creado" + (" como subgrupo." if parent_id else ".")
+    )
 
 
 @app.post("/admin/grupos/{group_id}/eliminar")

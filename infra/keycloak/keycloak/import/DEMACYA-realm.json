@@ -6,11 +6,23 @@
     "realm": [
       {
         "name": "admin",
-        "description": "Administrador del sistema"
+        "description": "Administrador del sistema",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "supervisor"
+          ]
+        }
       },
       {
         "name": "supervisor",
-        "description": "Supervisor de operación"
+        "description": "Supervisor de operación",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "operador"
+          ]
+        }
       },
       {
         "name": "operador",

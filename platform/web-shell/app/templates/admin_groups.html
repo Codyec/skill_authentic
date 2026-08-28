@@ -35,50 +35,77 @@
         <div class="page-head">
             <div>
                 <h1 class="page-title">Grupos</h1>
-                <p class="lead">Organiza a los usuarios por área o función. La pertenencia se edita en <a href="/admin/usuarios">Usuarios</a>.</p>
+                <p class="lead">Organiza a los usuarios por área, equipo o turno. La pertenencia se asigna en <a href="/admin/usuarios">Usuarios</a>.</p>
             </div>
-            <a class="btn btn-ghost" href="/admin/usuarios">Ir a usuarios</a>
+            <div class="page-head-actions">
+                <a class="btn btn-ghost" href="/admin/usuarios">Ir a usuarios</a>
+                <button class="btn btn-primary" onclick="openNew('')">Nuevo grupo</button>
+            </div>
         </div>
 
         {% if msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
         {% if err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
 
         <section class="panel">
-            <h2>Nuevo grupo</h2>
-            <form method="post" action="/admin/grupos" class="form-grid">
-                <label>Nombre<input name="name" required autocomplete="off" placeholder="p. ej. produccion"></label>
-                <div class="form-actions"><button class="btn btn-primary" type="submit">Crear grupo</button></div>
-            </form>
-            <p class="note">Crear y eliminar grupos requiere permisos de administración avanzados. Si no puedes, pide a un administrador que te los habilite.</p>
-        </section>
-
-        <section class="panel">
             <h2>{{ groups | length }} grupo(s)</h2>
-            <div class="table-wrap">
-                <table class="table">
-                    <thead>
-                        <tr><th>Grupo</th><th>Ruta</th><th>Miembros</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                    {% for g in groups %}
-                        <tr>
-                            <td class="mono">{{ g.name }}</td>
-                            <td class="mono">{{ g.path or "/" ~ g.name }}</td>
-                            <td>{{ g.member_count }}</td>
-                            <td class="row-actions">
-                                <form method="post" action="/admin/grupos/{{ g.id }}/eliminar"
-                                      onsubmit="return confirm('¿Eliminar el grupo {{ g.name }}? Los usuarios dejarán de pertenecer a él.');">
-                                    <button class="btn btn-danger" type="submit">Eliminar</button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr><td colspan="4" class="empty">Sin grupos.</td></tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            <p class="section-help">Un grupo puede contener subgrupos (por ejemplo <b>Producción → Turno A</b>). Al eliminar un grupo se eliminan también sus subgrupos.</p>
+
+            {% if groups %}
+            <ul class="tree">
+                {% for g in groups %}
+                <li class="tree-row" style="--depth: {{ g.depth }}">
+                    {% if g.depth %}<span class="tree-branch"></span>{% endif %}
+                    <span class="tree-name mono">{{ g.name }}</span>
+                    <span class="tree-meta">{{ g.member_count }} miembro(s)</span>
+                    <span class="tree-actions">
+                        <button class="btn btn-ghost btn-sm" onclick="openNew('{{ g.id }}', '{{ g.pretty }}')">Subgrupo</button>
+                        <form method="post" action="/admin/grupos/{{ g.id }}/eliminar"
+                              onsubmit="return confirm('¿Eliminar el grupo {{ g.pretty }} y sus subgrupos? Los usuarios dejarán de pertenecer a ellos.');">
+                            <button class="btn btn-danger btn-sm" type="submit">Eliminar</button>
+                        </form>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty">Todavía no hay grupos. Crea el primero con «Nuevo grupo».</p>
+            {% endif %}
         </section>
     </main>
+
+    <!-- ============ Diálogo: nuevo grupo / subgrupo ============ -->
+    <dialog id="dlg-new" class="modal">
+        <form method="dialog" class="modal-head">
+            <h2 id="dlg-new-title">Nuevo grupo</h2>
+            <button class="modal-x" value="cancel" aria-label="Cerrar">×</button>
+        </form>
+        <div class="modal-body">
+            <form method="post" action="/admin/grupos" class="stack">
+                <label>Nombre<input name="name" required autocomplete="off" placeholder="p. ej. Producción"></label>
+                <label>Dentro de
+                    <select name="parent_id" id="dlg-new-parent">
+                        <option value="">— Grupo principal —</option>
+                        {% for g in groups %}
+                        <option value="{{ g.id }}">{{ "  " * g.depth }}{{ g.pretty }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button class="btn btn-primary" type="submit">Crear grupo</button>
+                <p class="section-help">Crear y eliminar grupos requiere permisos de administración avanzados. Si no puedes, pide a un administrador que te los habilite.</p>
+            </form>
+        </div>
+    </dialog>
+
+    <script>
+        function openNew(parentId, parentLabel) {
+            document.getElementById("dlg-new-parent").value = parentId || "";
+            document.getElementById("dlg-new-title").textContent =
+                parentId ? ("Nuevo subgrupo de " + parentLabel) : "Nuevo grupo";
+            document.getElementById("dlg-new").showModal();
+        }
+        document.querySelectorAll("dialog.modal").forEach(function (d) {
+            d.addEventListener("click", function (e) { if (e.target === d) d.close(); });
+        });
+    </script>
 </body>
 </html>

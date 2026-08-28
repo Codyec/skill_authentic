@@ -64,8 +64,9 @@
                             <td>{{ u.email or "—" }}</td>
                             <td><span class="badge {{ 'badge-on' if u.enabled else 'badge-off' }}">{{ "Activo" if u.enabled else "Inactivo" }}</span></td>
                             <td>
-                                {% if u.realm_roles %}
-                                    {% for r in u.realm_roles %}<span class="badge">{{ role_labels.get(r, r) }}</span>{% endfor %}
+                                {% set shown_roles = u.effective_roles or u.realm_roles %}
+                                {% if shown_roles %}
+                                    {% for r in shown_roles %}<span class="badge">{{ role_labels.get(r, r) }}</span>{% endfor %}
                                 {% else %}<span class="muted">—</span>{% endif %}
                             </td>
                             <td>
@@ -150,16 +151,21 @@
 
             <section class="modal-section">
                 <h3>Roles</h3>
-                <p class="section-help">Marca los roles que tendrá esta persona.</p>
+                <p class="section-help">Los roles superiores incluyen a los inferiores: <b>Administrador</b> ▸ <b>Supervisor</b> ▸ <b>Operador</b>. Los marcados con ↳ vienen incluidos por un rol superior y no se quitan por separado.</p>
                 <div class="chips">
                 {% for r in assignable_roles %}
-                    {% set has = r in u.realm_roles %}
-                    <form method="post" action="/admin/usuarios/{{ u.id }}/roles">
-                        <input type="hidden" name="edit" value="{{ u.id }}">
-                        <input type="hidden" name="role" value="{{ r }}">
-                        <input type="hidden" name="action" value="{{ 'remove' if has else 'add' }}">
-                        <button class="chip {{ 'chip-on' if has else '' }}" type="submit">{% if has %}✓ {% endif %}{{ role_labels.get(r, r) }}</button>
-                    </form>
+                    {% set direct = r in u.realm_roles %}
+                    {% set inherited = (r in u.effective_roles) and not direct %}
+                    {% if inherited %}
+                        <span class="chip chip-locked" title="Incluido por un rol superior">↳ {{ role_labels.get(r, r) }}</span>
+                    {% else %}
+                        <form method="post" action="/admin/usuarios/{{ u.id }}/roles">
+                            <input type="hidden" name="edit" value="{{ u.id }}">
+                            <input type="hidden" name="role" value="{{ r }}">
+                            <input type="hidden" name="action" value="{{ 'remove' if direct else 'add' }}">
+                            <button class="chip {{ 'chip-on' if direct else '' }}" type="submit">{% if direct %}✓ {% endif %}{{ role_labels.get(r, r) }}</button>
+                        </form>
+                    {% endif %}
                 {% endfor %}
                 </div>
             </section>
@@ -186,7 +192,7 @@
                     <input type="hidden" name="edit" value="{{ u.id }}">
                     <input type="hidden" name="action" value="add">
                     <select name="group_id">
-                        {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ g.path or g.name }}</option>{% endfor %}
+                        {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ "  " * g.depth }}{{ g.pretty }}</option>{% endfor %}
                     </select>
                     <button class="btn btn-ghost" type="submit">Añadir a grupo</button>
                 </form>
