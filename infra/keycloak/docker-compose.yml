@@ -36,6 +36,13 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
 
+      # El emisor (iss) de los tokens queda fijo en esta URL sin importar
+      # por qué host entre la petición. Así el web-shell puede canjear el
+      # refresh_token llamando por host.docker.internal y el iss sigue
+      # coincidiendo (si no, Keycloak devuelve "Invalid token issuer").
+      KC_HOSTNAME: http://localhost:8081
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       KC_DB_USERNAME: ${POSTGRES_USER}

@@ -270,26 +270,35 @@ async def admin_access_token(request):
     refresh_token. Keycloak rota el refresh_token: se guarda el nuevo."""
     refresh_token = request.session.get("refresh_token")
     if not refresh_token:
+        print("[admin] sin refresh_token en la sesión")
         return None
 
-    data = {
+    base = {
         "grant_type": "refresh_token",
         "client_id": CLIENT_ID,
         "refresh_token": refresh_token,
     }
+
+    # El cliente puede ser público (sin secreto) o confidencial. Se prueba
+    # primero sin secreto; si Keycloak lo rechaza y hay secreto, se reintenta.
+    attempts = [base]
     if CLIENT_SECRET:
-        data["client_secret"] = CLIENT_SECRET
+        attempts.append({**base, "client_secret": CLIENT_SECRET})
 
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(KC_TOKEN_URL, data=data)
+        for data in attempts:
+            resp = await client.post(KC_TOKEN_URL, data=data)
+            if resp.status_code == 200:
+                tok = resp.json()
+                if tok.get("refresh_token"):
+                    request.session["refresh_token"] = tok["refresh_token"]
+                return tok.get("access_token")
+            print(
+                f"[admin] refresh_token -> {resp.status_code} "
+                f"{resp.text[:200]}"
+            )
 
-    if resp.status_code != 200:
-        return None
-
-    tok = resp.json()
-    if tok.get("refresh_token"):
-        request.session["refresh_token"] = tok["refresh_token"]
-    return tok.get("access_token")
+    return None
 
 
 async def kc_admin(request, method, path, **kwargs):
@@ -299,12 +308,16 @@ async def kc_admin(request, method, path, **kwargs):
         return None
 
     async with httpx.AsyncClient(base_url=KC_ADMIN_BASE, timeout=15) as client:
-        return await client.request(
+        resp = await client.request(
             method,
             path,
             headers={"Authorization": f"Bearer {token}"},
             **kwargs,
         )
+
+    if resp.status_code >= 400:
+        print(f"[admin] {method} {path} -> {resp.status_code} {resp.text[:200]}")
+    return resp
 
 
 # ============================================================
