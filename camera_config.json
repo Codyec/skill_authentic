@@ -1,0 +1,188 @@
+{
+  "saved_at": "2026-08-20 16:44:21",
+  "camera_ip": "192.168.0.216",
+  "properties": {
+    "auto_exposure": {
+      "label": "Auto Exposure",
+      "section": "ExposureControl",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "exposure_us": {
+      "label": "Exposure Time",
+      "section": "ExposureControl",
+      "type": "float",
+      "value": 10000.0,
+      "ok": true
+    },
+    "analog_gain": {
+      "label": "Analog Gain",
+      "section": "ExposureControl",
+      "type": "int",
+      "value": 12,
+      "ok": true
+    },
+    "analog_gain_x": {
+      "label": "Analog Gain X",
+      "section": "ExposureControl",
+      "type": "float",
+      "value": 6.0,
+      "ok": true
+    },
+    "gamma": {
+      "label": "Gamma",
+      "section": "ImageFormatControl",
+      "type": "int",
+      "value": 100,
+      "ok": true
+    },
+    "contrast": {
+      "label": "Contrast",
+      "section": "ImageFormatControl",
+      "type": "int",
+      "value": 100,
+      "ok": true
+    },
+    "saturation": {
+      "label": "Saturation",
+      "section": "ImageFormatControl",
+      "type": "int",
+      "value": 100,
+      "ok": true
+    },
+    "mirror_h": {
+      "label": "Mirror Horizontal",
+      "section": "ImageFormatControl",
+      "type": "bool_index",
+      "value": 0,
+      "ok": true
+    },
+    "mirror_v": {
+      "label": "Mirror Vertical",
+      "section": "ImageFormatControl",
+      "type": "bool_index",
+      "value": 0,
+      "ok": true
+    },
+    "rotate": {
+      "label": "Rotate",
+      "section": "ImageFormatControl",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "inverse": {
+      "label": "Inverse",
+      "section": "ImageFormatControl",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "anti_flick": {
+      "label": "Anti Flick",
+      "section": "ExposureControl",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "light_frequency": {
+      "label": "Anti Flick Frequency",
+      "section": "ExposureControl",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "frame_speed": {
+      "label": "Frame Speed",
+      "section": "AcquisitionControl",
+      "type": "enum",
+      "value": 2,
+      "ok": true
+    },
+    "trigger_mode": {
+      "label": "Trigger Mode",
+      "section": "TriggerControl",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "trigger_count": {
+      "label": "Trigger Count",
+      "section": "TriggerControl",
+      "type": "int",
+      "value": 1,
+      "ok": true
+    },
+    "trigger_delay_us": {
+      "label": "Trigger Delay",
+      "section": "TriggerControl",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "strobe_mode": {
+      "label": "Strobe Mode",
+      "section": "DigitalIOControl",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "strobe_delay_us": {
+      "label": "Strobe Delay",
+      "section": "DigitalIOControl",
+      "type": "int",
+      "value": 50,
+      "ok": true
+    },
+    "parameter_mode": {
+      "label": "Parameter Mode",
+      "section": "DeviceControl",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "trans_pack_len": {
+      "label": "Transfer Packet Length",
+      "section": "GigEVisionControl",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "isp_processor": {
+      "label": "ISP Processor",
+      "section": "ImageFormatControl",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "black_level": {
+      "label": "Black Level",
+      "section": "ImageFormatControl",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "white_level": {
+      "label": "White Level",
+      "section": "ImageFormatControl",
+      "type": "int",
+      "value": 256,
+      "ok": true
+    },
+    "noise_filter": {
+      "label": "Noise Filter",
+      "section": "ImageFormatControl",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "acquisition_frame_rate": {
+      "label": "Acquisition Frame Rate",
+      "section": "AcquisitionControl",
+      "type": "float",
+      "value": 0,
+      "ok": true
+    }
+  }
+}

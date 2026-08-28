@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(grep -iE 'tar\\\\.gz|\\\\.tlog|\\\\.ilk|\\\\.recipe|\\\\.log$|\\\\.obj$')",
+      "Bash(cd \"c:/Python/YOLO/camaron\" && rm -f .git/index && git add -A && echo \"=== junk still staged? ===\" && git ls-files | grep -iE 'tar\\\\.gz|\\\\.tlog|\\\\.ilk|\\\\.recipe|/x64/Debug/' ; echo \"=== count ===\" && git ls-files | wc -l && echo \"=== GenTL files ===\" && git ls-files | grep GenTL)"
+    ],
+    "additionalDirectories": [
+      "c:\\Python\\YOLO\\camaron\\.git"
+    ]
+  }
+}

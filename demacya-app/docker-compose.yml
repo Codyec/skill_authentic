@@ -1,0 +1,15 @@
+services:
+
+  demacya-app:
+    build: .
+    container_name: demacya-app
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    env_file:
+      - .env
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

@@ -1,0 +1,544 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+
+    font-family:
+        Inter,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
+    background: #151720;
+    color: #f4f5f7;
+}
+
+body {
+    min-height: 100vh;
+}
+
+
+/* ============================================================
+   APP
+   ============================================================ */
+
+.app {
+    display: flex;
+    min-height: 100vh;
+}
+
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+
+.sidebar {
+    width: 268px;
+    min-width: 268px;
+
+    background: #171921;
+
+    border-right: 1px solid #303441;
+
+    padding: 28px 16px;
+
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* ============================================================
+   BRAND
+   ============================================================ */
+
+.brand {
+    display: flex;
+    align-items: center;
+
+    padding: 8px 10px 18px;
+}
+
+.brand-logo {
+    width: 48px;
+    height: 48px;
+
+    object-fit: contain;
+
+    margin-right: 12px;
+
+    background: #ffffff;
+}
+
+.brand-text {
+    line-height: 1;
+}
+
+.brand-name {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.brand-subtitle {
+    margin-top: 7px;
+
+    font-size: 9px;
+    line-height: 1.35;
+
+    letter-spacing: 1.3px;
+
+    color: #8fa0bf;
+}
+
+.sidebar-line {
+    height: 1px;
+
+    background: #303441;
+
+    margin: 8px 18px 28px;
+}
+
+
+/* ============================================================
+   SECTION TITLES
+   ============================================================ */
+
+.section-title {
+    padding: 0 14px 10px;
+
+    font-size: 9px;
+
+    letter-spacing: 1.8px;
+
+    color: #71809c;
+}
+
+.system-title {
+    margin-top: 30px;
+}
+
+
+/* ============================================================
+   MENU
+   ============================================================ */
+
+.menu {
+    display: flex;
+    flex-direction: column;
+
+    gap: 5px;
+}
+
+.menu-item {
+    height: 46px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 18px;
+
+    border-radius: 8px;
+
+    color: #aab4ca;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.menu-item:hover {
+    background: #202432;
+    color: #ffffff;
+}
+
+.menu-item.active {
+    background: #20283b;
+
+    color: #ffffff;
+
+    border-left: 3px solid #4d8cff;
+
+    padding-left: 15px;
+}
+
+.menu-icon {
+    width: 28px;
+
+    font-size: 16px;
+
+    color: #aebbd2;
+}
+
+.menu-item.active .menu-icon {
+    color: #ffffff;
+}
+
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+
+.main {
+    flex: 1;
+
+    min-width: 0;
+
+    background:
+        radial-gradient(
+            circle at 75% 10%,
+            rgba(43, 72, 130, 0.12),
+            transparent 35%
+        ),
+        #171922;
+}
+
+
+/* ============================================================
+   TOPBAR
+   ============================================================ */
+
+.topbar {
+    height: 108px;
+
+    border-bottom: 1px solid #303441;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 36px;
+}
+
+.topbar h1 {
+    margin: 0;
+
+    font-size: 21px;
+
+    font-weight: 650;
+}
+
+.topbar p {
+    margin: 5px 0 0;
+
+    color: #8e98ad;
+
+    font-size: 13px;
+}
+
+
+/* ============================================================
+   USER AREA
+   ============================================================ */
+
+.user-area {
+    display: flex;
+    align-items: center;
+
+    gap: 28px;
+}
+
+.system-status {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    font-size: 12px;
+
+    color: #aeb7c9;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: #65d391;
+
+    box-shadow: 0 0 9px rgba(101, 211, 145, 0.5);
+}
+
+.user {
+    display: flex;
+    align-items: center;
+
+    gap: 11px;
+}
+
+.avatar {
+    width: 38px;
+    height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #315aa8;
+
+    color: #ffffff;
+
+    font-weight: 600;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+}
+
+.user-info strong {
+    font-size: 12px;
+
+    color: #f3f4f7;
+}
+
+.user-info span {
+    font-size: 10px;
+
+    color: #7e899f;
+}
+
+
+/* ============================================================
+   CONTENT
+   ============================================================ */
+
+.content {
+    padding: 38px 36px 60px;
+}
+
+.welcome h2 {
+    margin: 0;
+
+    font-size: 29px;
+
+    font-weight: 650;
+}
+
+.welcome p {
+    margin: 8px 0 0;
+
+    color: #8993a8;
+
+    font-size: 14px;
+}
+
+
+/* ============================================================
+   MODULE SECTION
+   ============================================================ */
+
+.module-section {
+    margin-top: 30px;
+}
+
+.section-heading {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-bottom: 14px;
+}
+
+.section-heading h3 {
+    margin: 0;
+
+    font-size: 16px;
+}
+
+
+/* ============================================================
+   MODULE GRID
+   ============================================================ */
+
+.module-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 18px;
+
+    max-width: 900px;
+}
+
+
+/* ============================================================
+   MODULE CARD
+   ============================================================ */
+
+.module-card {
+    min-height: 225px;
+
+    padding: 24px;
+
+    border-radius: 12px;
+
+    border: 1px solid #303646;
+
+    background:
+        linear-gradient(
+            145deg,
+            #20232e,
+            #1c1f29
+        );
+
+    color: #ffffff;
+
+    text-decoration: none;
+
+    display: flex;
+    flex-direction: column;
+
+    transition:
+        transform 0.15s ease,
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+
+.module-card:hover {
+    transform: translateY(-2px);
+
+    border-color: #405782;
+
+    background:
+        linear-gradient(
+            145deg,
+            #242936,
+            #1e222d
+        );
+}
+
+
+/* ============================================================
+   ICON
+   ============================================================ */
+
+.module-icon {
+    width: 48px;
+    height: 48px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 10px;
+
+    background: #202b44;
+
+    border: 1px solid #30466f;
+
+    color: #ffffff;
+
+    font-size: 21px;
+}
+
+.logout-icon {
+    background: #252838;
+}
+
+
+/* ============================================================
+   CARD TEXT
+   ============================================================ */
+
+.module-card h4 {
+    margin: 22px 0 8px;
+
+    font-size: 16px;
+}
+
+.module-card p {
+    margin: 0;
+
+    max-width: 500px;
+
+    color: #8993a8;
+
+    font-size: 12px;
+
+    line-height: 1.6;
+}
+
+.module-link {
+    margin-top: auto;
+
+    padding-top: 20px;
+
+    border-top: 1px solid #303544;
+
+    color: #6da0ff;
+
+    font-size: 11px;
+
+    font-weight: 600;
+
+    letter-spacing: 0.3px;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 900px) {
+
+    .sidebar {
+        width: 220px;
+        min-width: 220px;
+    }
+
+    .topbar {
+        padding: 0 24px;
+    }
+
+    .content {
+        padding: 30px 24px;
+    }
+
+    .system-status {
+        display: none;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .sidebar {
+        display: none;
+    }
+
+    .module-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar {
+        height: auto;
+
+        padding: 24px;
+    }
+
+    .user-info {
+        display: none;
+    }
+
+}

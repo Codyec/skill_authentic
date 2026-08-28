@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Entornos / secretos
+.env
+*.local
+
+# SDK del fabricante: archivos comprimidos originales (la fuente pristina vive en disco,
+# el contenido extraído SÍ se versiona bajo vendor/mindvision-sdk/{linux,v4l2})
+vendor/mindvision-sdk/archives/
+*.tar.gz
+
+# Artefactos de build C/C++ del SDK
+*.o
+*.obj
+*.ilk
+*.pdb
+*.idb
+**/x64/Debug/
+**/x64/Release/
+**/*.tlog
+*.recipe
+*.lastbuildstate
+
+# SO / editores
+.DS_Store
+Thumbs.db
