@@ -120,6 +120,14 @@
                                 <details class="menu-pop">
                                     <summary>⋯</summary>
                                     <div class="pop">
+                                        <form method="post" action="/admin/usuarios/{{ u.id }}/perfil" class="pop-form">
+                                            <span class="pop-title">Datos</span>
+                                            <input name="first_name" type="text" placeholder="Nombre" value="{{ u.firstName or '' }}">
+                                            <input name="last_name" type="text" placeholder="Apellido" value="{{ u.lastName or '' }}">
+                                            <input name="email" type="email" placeholder="Correo" value="{{ u.email or '' }}">
+                                            <input type="hidden" name="enabled" value="{{ 'true' if u.enabled else 'false' }}">
+                                            <button class="btn btn-ghost" type="submit">Guardar datos</button>
+                                        </form>
                                         {% set ns = namespace(any=false) %}
                                         {% for g in all_groups if g.id not in member_ids %}{% set ns.any = true %}{% endfor %}
                                         {% if ns.any %}
@@ -136,7 +144,7 @@
                                             <label class="check"><input type="checkbox" name="temporary" checked> temporal</label>
                                             <button class="btn btn-ghost" type="submit">Cambiar contraseña</button>
                                         </form>
-                                        <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar"
+                                        <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar" class="pop-form"
                                               onsubmit="return confirm('¿Eliminar a {{ u.username }}? Esta acción no se puede deshacer.');">
                                             <button class="btn btn-danger" type="submit">Eliminar usuario</button>
                                         </form>

@@ -618,21 +618,34 @@ select:focus {
     right: 0;
     z-index: 20;
     margin-top: 6px;
-    width: 240px;
-    padding: 14px;
+    width: 250px;
+    padding: 6px 14px 14px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: #0c1424;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
-    gap: 12px;
 }
 
 .pop-form {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.pop-form:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.pop-title {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
 }
 
 .pop .btn {

@@ -682,6 +682,30 @@ async def admin_users_toggle(request: Request, user_id: str, enabled: str = Form
     return _redir_users(msg="Estado actualizado.")
 
 
+@app.post("/admin/usuarios/{user_id}/perfil")
+async def admin_users_profile(
+    request: Request, user_id: str,
+    first_name: str = Form(""),
+    last_name: str = Form(""),
+    email: str = Form(""),
+    enabled: str = Form("true"),
+):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    body = {
+        "firstName": first_name.strip() or None,
+        "lastName": last_name.strip() or None,
+        "email": email.strip() or None,
+        "enabled": enabled == "true",
+    }
+    resp = await kc_admin(request, "PUT", f"/users/{user_id}", json=body)
+    if resp is None or resp.status_code not in (204, 200):
+        return _redir_users(err=_kc_error(resp, "No se pudieron guardar los datos"))
+    return _redir_users(msg="Datos del usuario actualizados.")
+
+
 @app.post("/admin/usuarios/{user_id}/password")
 async def admin_users_password(
     request: Request, user_id: str,
