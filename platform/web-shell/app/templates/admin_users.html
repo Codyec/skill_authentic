@@ -61,6 +61,7 @@
         <!-- Listado -->
         <section class="panel">
             <h2>{{ users | length }} usuario(s)</h2>
+            <p class="hint">Etiqueta con borde = rol sin asignar (clic para asignar) · etiqueta rellena = rol asignado (clic para quitar).</p>
             <div class="table-wrap">
                 <table class="table">
                     <thead>
@@ -88,7 +89,8 @@
                                     <form method="post" action="/admin/usuarios/{{ u.id }}/roles">
                                         <input type="hidden" name="role" value="{{ r }}">
                                         <input type="hidden" name="action" value="{{ 'remove' if has else 'add' }}">
-                                        <button class="tag {{ 'tag-on' if has else 'tag-off' }}" type="submit">{{ r }}</button>
+                                        <button class="tag {{ 'tag-on' if has else 'tag-off' }}" type="submit"
+                                                title="{{ 'Quitar' if has else 'Asignar' }} el rol {{ r }}">{{ r }}</button>
                                     </form>
                                 {% endfor %}
                                 </div>
@@ -118,5 +120,23 @@
             </div>
         </section>
     </main>
+
+    <script>
+        // Cerrar el submenú (⋯) al hacer clic fuera o con Escape.
+        document.addEventListener("click", function (e) {
+            document.querySelectorAll("details.menu-pop[open]").forEach(function (d) {
+                if (!d.contains(e.target)) {
+                    d.removeAttribute("open");
+                }
+            });
+        });
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") {
+                document.querySelectorAll("details.menu-pop[open]").forEach(function (d) {
+                    d.removeAttribute("open");
+                });
+            }
+        });
+    </script>
 </body>
 </html>
