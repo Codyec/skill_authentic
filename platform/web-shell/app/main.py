@@ -22,12 +22,19 @@ from authlib.integrations.starlette_client import OAuth
 
 load_dotenv()
 
+# Identidad visible (marca y logo). Se define por proyecto vía entorno;
+# los defaults mantienen la identidad DEMACYA.
+BRAND = os.getenv("BRAND", "DEMACYA")
+LOGO_FILE = os.getenv("LOGO_FILE", "logo.png")
+TAGLINE = os.getenv("TAGLINE", "Ingeniería de automatización industrial")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
+
 
 # ============================================================
 # APP
 # ============================================================
 
-app = FastAPI(title="DEMACYA")
+app = FastAPI(title=BRAND)
 
 
 # ============================================================
@@ -48,6 +55,11 @@ app.mount(
 templates = Jinja2Templates(
     directory="app/templates"
 )
+
+# Disponibles en todas las plantillas sin pasarlos en cada ruta.
+templates.env.globals["brand"] = BRAND
+templates.env.globals["logo"] = LOGO_FILE
+templates.env.globals["tagline"] = TAGLINE
 
 
 # ============================================================
@@ -110,7 +122,7 @@ ASSIGNABLE_ROLES = ["admin", "supervisor", "operador"]
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET,
-    session_cookie="demacya_session",
+    session_cookie=os.getenv("SESSION_COOKIE", "demacya_session"),
     max_age=3600,
     path="/",
     same_site="lax",
@@ -190,9 +202,12 @@ oauth.register(
 # ============================================================
 # MENÚ PRINCIPAL
 # ============================================================
-# Definición del menú post-login. Cambia según el proyecto:
-# aquí se agregan / quitan módulos (consultas, dashboards,
-# monitor con cámara, etc.). Ver docs/roadmap-skill.md (Fase 2).
+# Definición del menú post-login. AQUÍ es donde cada proyecto
+# añade o quita secciones. Cada item admite:
+#   admin_only: True     -> solo para administradores
+#   roles: ["operador"]  -> solo si el usuario tiene alguno de esos roles
+#   enabled: False        -> se muestra atenuado como "Próximamente"
+# Ver la ruta de ejemplo /proceso más abajo.
 
 MAIN_MENU = [
     {
@@ -214,33 +229,27 @@ MAIN_MENU = [
     {
         "id": "proceso",
         "title": "Proceso",
-        "description": "Supervisión y control del proceso productivo en tiempo real.",
-        "href": "#",
+        "description": "Sección de ejemplo: solo la ve quien tenga el rol de operador o superior.",
+        "href": "/proceso",
         "enabled": True,
-    },
-    {
-        "id": "consultas",
-        "title": "Consultas",
-        "description": "Reportes históricos y consultas sobre la base de datos.",
-        "href": "#",
-        "enabled": False,
-    },
-    {
-        "id": "monitor",
-        "title": "Monitor en vivo",
-        "description": "Tablero de indicadores y video en tiempo real.",
-        "href": "#",
-        "enabled": False,
+        "roles": ["operador"],
     },
 ]
 
 
-def visible_menu(is_admin):
-    """Filtra el menú. Los items 'admin_only' solo se muestran a administradores."""
-    return [
-        item for item in MAIN_MENU
-        if not item.get("admin_only") or is_admin
-    ]
+def visible_menu(request):
+    """Filtra el menú según los permisos del usuario en sesión."""
+    admin = is_admin(request)
+    roles = set(get_roles(request))
+    result = []
+    for item in MAIN_MENU:
+        if item.get("admin_only") and not admin:
+            continue
+        needed = item.get("roles")
+        if needed and not (roles & set(needed)) and not admin:
+            continue
+        result.append(item)
+    return result
 
 
 # ============================================================
@@ -351,7 +360,7 @@ async def login_page(request: Request):
         name="login.html",
         context={
             "request": request,
-            "title": "DEMACYA",
+            "title": BRAND,
         },
     )
 
@@ -481,18 +490,43 @@ async def dashboard(request: Request):
     # Mostrar dashboard
     # --------------------------------------------------------
 
-    admin = is_admin(request)
-
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
             "request": request,
-            "title": "Dashboard DEMACYA",
+            "title": f"Panel · {BRAND}",
             "user": user,
-            "is_admin": admin,
-            "menu": visible_menu(admin),
+            "is_admin": is_admin(request),
+            "menu": visible_menu(request),
         },
+    )
+
+
+# ============================================================
+# SECCIÓN DE EJEMPLO — plantilla para las secciones del proyecto
+# ============================================================
+# Copia este patrón para cada sección nueva: una ruta protegida
+# por rol + su plantilla + una entrada en MAIN_MENU.
+
+@app.get("/proceso", response_class=HTMLResponse)
+async def proceso(request: Request):
+    user = get_user(request)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+
+    if not is_admin(request) and "operador" not in get_roles(request):
+        return templates.TemplateResponse(
+            request=request,
+            name="forbidden.html",
+            context={"request": request, "title": "Sin permiso", "user": user},
+            status_code=403,
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="proceso.html",
+        context={"request": request, "title": "Proceso", "user": user},
     )
 
 
@@ -988,9 +1022,7 @@ async def logout(request: Request):
     # Página a la que Keycloak devolverá al usuario
     # --------------------------------------------------------
 
-    post_logout_redirect_uri = (
-        "http://localhost:8000/"
-    )
+    post_logout_redirect_uri = APP_BASE_URL.rstrip("/") + "/"
 
     # --------------------------------------------------------
     # Parámetros del logout OIDC

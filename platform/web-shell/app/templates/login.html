@@ -13,15 +13,15 @@
 
 <body class="auth">
     <main class="auth-card">
-        <img class="auth-logo" src="/static/Logo_DEMA.png" alt="DEMA Control &amp; Automatización">
+        <img class="auth-logo" src="/static/{{ logo }}" alt="{{ brand }}">
 
-        <p class="eyebrow">Ingeniería de automatización industrial</p>
-        <h1>Plataforma DEMACYA</h1>
-        <p class="lead">Acceso a los sistemas de control y monitoreo.</p>
+        <p class="eyebrow">{{ tagline }}</p>
+        <h1>Plataforma {{ brand }}</h1>
+        <p class="lead">Acceso al panel de la plataforma.</p>
 
         <a class="btn btn-primary" href="/login">Iniciar sesión</a>
 
-        <p class="auth-foot">Acceso protegido de DEMACYA</p>
+        <p class="auth-foot">Acceso protegido de {{ brand }}</p>
     </main>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }} · DEMACYA</title>
+    <title>{{ title }} · {{ brand }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,8 +17,8 @@
     <header class="topbar">
         <div class="topbar-inner">
             <a class="brand" href="/dashboard">
-                <img src="/static/Logo_DEMA.png" alt="DEMA">
-                <span>DEMACYA</span>
+                <img src="/static/{{ logo }}" alt="{{ brand }}">
+                <span>{{ brand }}</span>
             </a>
             <div class="topbar-right">
                 {% if user %}

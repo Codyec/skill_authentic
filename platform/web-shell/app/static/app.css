@@ -677,6 +677,13 @@ select:focus {
     color: var(--text-dim);
 }
 
+.section-help .mono,
+.lead .mono {
+    font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color: var(--text);
+    font-size: 0.92em;
+}
+
 .badge {
     display: inline-block;
     margin: 2px 4px 2px 0;
