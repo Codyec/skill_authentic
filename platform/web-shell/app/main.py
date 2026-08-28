@@ -170,6 +170,38 @@ oauth.register(
 
 
 # ============================================================
+# MENÚ PRINCIPAL
+# ============================================================
+# Definición del menú post-login. Cambia según el proyecto:
+# aquí se agregan / quitan módulos (consultas, dashboards,
+# monitor con cámara, etc.). Ver docs/roadmap-skill.md (Fase 2).
+
+MAIN_MENU = [
+    {
+        "id": "proceso",
+        "title": "Proceso",
+        "description": "Supervisión y control del proceso productivo en tiempo real.",
+        "href": "#",
+        "enabled": True,
+    },
+    {
+        "id": "consultas",
+        "title": "Consultas",
+        "description": "Reportes históricos y consultas sobre la base de datos.",
+        "href": "#",
+        "enabled": False,
+    },
+    {
+        "id": "monitor",
+        "title": "Monitor en vivo",
+        "description": "Tablero de indicadores y video en tiempo real.",
+        "href": "#",
+        "enabled": False,
+    },
+]
+
+
+# ============================================================
 # INICIO
 # ============================================================
 
@@ -305,6 +337,7 @@ async def dashboard(request: Request):
             "request": request,
             "title": "Dashboard DEMACYA",
             "user": user,
+            "menu": MAIN_MENU,
         },
     )
 

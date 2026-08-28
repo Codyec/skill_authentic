@@ -11,5 +11,11 @@ services:
     env_file:
       - .env
 
+    # Código montado en vivo: editar plantillas / CSS no requiere reconstruir
+    # la imagen (Jinja relee las plantillas en cada request). Cambios en
+    # main.py sí necesitan `docker compose restart`.
+    volumes:
+      - ./app:/app/app
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
