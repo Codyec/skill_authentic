@@ -534,7 +534,10 @@ async def _load_users(request):
             request, "GET", f"/users/{u['id']}/role-mappings/realm"
         )
         u["realm_roles"] = (
-            sorted(x["name"] for x in r.json())
+            sorted(
+                x["name"] for x in r.json()
+                if x["name"] in ASSIGNABLE_ROLES
+            )
             if r is not None and r.status_code == 200
             else []
         )
@@ -582,7 +585,7 @@ async def _load_groups(request):
 
 
 @app.get("/admin/usuarios", response_class=HTMLResponse)
-async def admin_users(request: Request, msg: str = "", err: str = ""):
+async def admin_users(request: Request, msg: str = "", err: str = "", edit: str = ""):
     user, deny = _require_admin(request)
     if deny:
         return deny
@@ -610,6 +613,7 @@ async def admin_users(request: Request, msg: str = "", err: str = ""):
             "all_groups": groups,
             "msg": msg,
             "err": err,
+            "edit_id": edit,
         },
     )
 
@@ -668,7 +672,10 @@ async def admin_users_create(
 
 
 @app.post("/admin/usuarios/{user_id}/estado")
-async def admin_users_toggle(request: Request, user_id: str, enabled: str = Form(...)):
+async def admin_users_toggle(
+    request: Request, user_id: str,
+    enabled: str = Form(...), edit: str = Form(""),
+):
     _, deny = _require_admin(request)
     if deny:
         return deny
@@ -678,8 +685,8 @@ async def admin_users_toggle(request: Request, user_id: str, enabled: str = Form
         json={"enabled": enabled == "true"},
     )
     if resp is None or resp.status_code not in (204, 200):
-        return _redir_users(err=_kc_error(resp, "No se pudo cambiar el estado"))
-    return _redir_users(msg="Estado actualizado.")
+        return _redir_users(err=_kc_error(resp, "No se pudo cambiar el estado"), edit=edit)
+    return _redir_users(msg="Estado actualizado.", edit=edit)
 
 
 @app.post("/admin/usuarios/{user_id}/perfil")
@@ -689,6 +696,7 @@ async def admin_users_profile(
     last_name: str = Form(""),
     email: str = Form(""),
     enabled: str = Form("true"),
+    edit: str = Form(""),
 ):
     _, deny = _require_admin(request)
     if deny:
@@ -702,14 +710,17 @@ async def admin_users_profile(
     }
     resp = await kc_admin(request, "PUT", f"/users/{user_id}", json=body)
     if resp is None or resp.status_code not in (204, 200):
-        return _redir_users(err=_kc_error(resp, "No se pudieron guardar los datos"))
-    return _redir_users(msg="Datos del usuario actualizados.")
+        return _redir_users(
+            err=_kc_error(resp, "No se pudieron guardar los datos"), edit=edit
+        )
+    return _redir_users(msg="Datos del usuario actualizados.", edit=edit)
 
 
 @app.post("/admin/usuarios/{user_id}/password")
 async def admin_users_password(
     request: Request, user_id: str,
     password: str = Form(...), temporary: str = Form("on"),
+    edit: str = Form(""),
 ):
     _, deny = _require_admin(request)
     if deny:
@@ -720,26 +731,29 @@ async def admin_users_password(
         json={"type": "password", "value": password, "temporary": temporary == "on"},
     )
     if resp is None or resp.status_code not in (204, 200):
-        return _redir_users(err=_kc_error(resp, "No se pudo cambiar la contraseña"))
-    return _redir_users(msg="Contraseña actualizada.")
+        return _redir_users(
+            err=_kc_error(resp, "No se pudo cambiar la contraseña"), edit=edit
+        )
+    return _redir_users(msg="Contraseña actualizada.", edit=edit)
 
 
 @app.post("/admin/usuarios/{user_id}/roles")
 async def admin_users_roles(
     request: Request, user_id: str,
     role: str = Form(...), action: str = Form(...),
+    edit: str = Form(""),
 ):
     _, deny = _require_admin(request)
     if deny:
         return deny
 
     if role not in ASSIGNABLE_ROLES:
-        return _redir_users(err="Rol no permitido.")
+        return _redir_users(err="Ese rol no está permitido.", edit=edit)
 
     ok = await _set_role(request, user_id, role, add=(action == "add"))
     if not ok:
-        return _redir_users(err="No se pudo actualizar el rol.")
-    return _redir_users(msg="Roles actualizados.")
+        return _redir_users(err="No se pudo actualizar el rol.", edit=edit)
+    return _redir_users(msg="Roles actualizados.", edit=edit)
 
 
 @app.post("/admin/usuarios/{user_id}/eliminar")
@@ -795,9 +809,12 @@ def _kc_error(resp, fallback):
     return fallback + "."
 
 
-def _redir_users(msg="", err=""):
+def _redir_users(msg="", err="", edit=""):
+    query = {"msg": msg, "err": err}
+    if edit:
+        query["edit"] = edit
     return RedirectResponse(
-        url="/admin/usuarios?" + urlencode({"msg": msg, "err": err}),
+        url="/admin/usuarios?" + urlencode(query),
         status_code=303,
     )
 
@@ -885,6 +902,7 @@ async def admin_groups_delete(request: Request, group_id: str):
 async def admin_users_groups(
     request: Request, user_id: str,
     group_id: str = Form(...), action: str = Form(...),
+    edit: str = Form(""),
 ):
     _, deny = _require_admin(request)
     if deny:
@@ -895,8 +913,10 @@ async def admin_users_groups(
         request, method, f"/users/{user_id}/groups/{group_id}"
     )
     if resp is None or resp.status_code not in (204, 200):
-        return _redir_users(err=_kc_error(resp, "No se pudo actualizar el grupo"))
-    return _redir_users(msg="Grupos del usuario actualizados.")
+        return _redir_users(
+            err=_kc_error(resp, "No se pudo actualizar el grupo"), edit=edit
+        )
+    return _redir_users(msg="Grupos del usuario actualizados.", edit=edit)
 
 
 # ============================================================

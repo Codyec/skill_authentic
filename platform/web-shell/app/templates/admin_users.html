@@ -12,6 +12,8 @@
 </head>
 
 <body class="app">
+    {% set role_labels = {"admin": "Administrador", "supervisor": "Supervisor", "operador": "Operador"} %}
+
     <header class="topbar">
         <div class="topbar-inner">
             <a class="brand" href="/dashboard">
@@ -37,119 +39,42 @@
                 <h1 class="page-title">Usuarios</h1>
                 <p class="lead">Gestión de cuentas y permisos de la plataforma.</p>
             </div>
-            <a class="btn btn-ghost" href="/admin/grupos">Gestionar grupos</a>
+            <div class="page-head-actions">
+                <a class="btn btn-ghost" href="/admin/grupos">Gestionar grupos</a>
+                <button class="btn btn-primary" onclick="document.getElementById('dlg-new').showModal()">Nuevo usuario</button>
+            </div>
         </div>
 
-        {% if msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
-        {% if err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
+        {% if not edit_id and msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
+        {% if not edit_id and err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
 
-        <!-- Alta -->
-        <section class="panel">
-            <h2>Nuevo usuario</h2>
-            <form method="post" action="/admin/usuarios" class="form-grid">
-                <label>Usuario<input name="username" required autocomplete="off"></label>
-                <label>Email<input name="email" type="email" autocomplete="off"></label>
-                <label>Nombre<input name="first_name" autocomplete="off"></label>
-                <label>Apellido<input name="last_name" autocomplete="off"></label>
-                <label>Contraseña<input name="password" type="text" required autocomplete="off"></label>
-                <label>Rol inicial
-                    <select name="role">
-                        <option value="">— ninguno —</option>
-                        {% for r in assignable_roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
-                    </select>
-                </label>
-                <label class="check"><input type="checkbox" name="temporary" checked> Contraseña temporal (debe cambiarla al entrar)</label>
-                <div class="form-actions"><button class="btn btn-primary" type="submit">Crear usuario</button></div>
-            </form>
-        </section>
-
-        <!-- Listado -->
         <section class="panel">
             <h2>{{ users | length }} usuario(s)</h2>
-            <p class="hint">Roles: etiqueta con borde = sin asignar (clic para asignar), rellena = asignada (clic para quitar). Grupos: clic en un grupo para quitarlo; usa <b>⋯</b> para añadir a un grupo o cambiar la contraseña.</p>
+            <p class="section-help">Pulsa «Editar» en cualquier usuario para cambiar sus datos, roles, grupos o contraseña.</p>
             <div class="table-wrap">
                 <table class="table">
                     <thead>
-                        <tr><th>Usuario</th><th>Nombre</th><th>Email</th><th>Estado</th><th>Roles</th><th>Grupos</th><th></th></tr>
+                        <tr><th>Usuario</th><th>Nombre</th><th>Correo</th><th>Estado</th><th>Roles</th><th>Grupos</th><th></th></tr>
                     </thead>
                     <tbody>
                     {% for u in users %}
                         <tr>
                             <td class="mono">{{ u.username }}</td>
-                            <td>{{ (u.firstName or "") ~ " " ~ (u.lastName or "") }}</td>
+                            <td>{{ ((u.firstName or "") ~ " " ~ (u.lastName or "")) | trim or "—" }}</td>
                             <td>{{ u.email or "—" }}</td>
+                            <td><span class="badge {{ 'badge-on' if u.enabled else 'badge-off' }}">{{ "Activo" if u.enabled else "Inactivo" }}</span></td>
                             <td>
-                                <form method="post" action="/admin/usuarios/{{ u.id }}/estado">
-                                    <input type="hidden" name="enabled" value="{{ 'false' if u.enabled else 'true' }}">
-                                    <button class="pill {{ 'pill-on' if u.enabled else 'pill-off' }}" type="submit"
-                                            title="Clic para {{ 'deshabilitar' if u.enabled else 'habilitar' }}">
-                                        {{ 'Activo' if u.enabled else 'Inactivo' }}
-                                    </button>
-                                </form>
+                                {% if u.realm_roles %}
+                                    {% for r in u.realm_roles %}<span class="badge">{{ role_labels.get(r, r) }}</span>{% endfor %}
+                                {% else %}<span class="muted">—</span>{% endif %}
                             </td>
-                            <td>
-                                <div class="roles">
-                                {% for r in assignable_roles %}
-                                    {% set has = r in u.realm_roles %}
-                                    <form method="post" action="/admin/usuarios/{{ u.id }}/roles">
-                                        <input type="hidden" name="role" value="{{ r }}">
-                                        <input type="hidden" name="action" value="{{ 'remove' if has else 'add' }}">
-                                        <button class="tag {{ 'tag-on' if has else 'tag-off' }}" type="submit"
-                                                title="{{ 'Quitar' if has else 'Asignar' }} el rol {{ r }}">{{ r }}</button>
-                                    </form>
-                                {% endfor %}
-                                </div>
-                            </td>
-                            {% set member_ids = u.groups | map(attribute="id") | list %}
                             <td>
                                 {% if u.groups %}
-                                <div class="roles">
-                                {% for g in u.groups %}
-                                    <form method="post" action="/admin/usuarios/{{ u.id }}/grupos">
-                                        <input type="hidden" name="group_id" value="{{ g.id }}">
-                                        <input type="hidden" name="action" value="remove">
-                                        <button class="tag tag-on" type="submit" title="Quitar de {{ g.name }}">{{ g.name }}</button>
-                                    </form>
-                                {% endfor %}
-                                </div>
-                                {% else %}
-                                <span class="muted">—</span>
-                                {% endif %}
+                                    {% for g in u.groups %}<span class="badge">{{ g.name }}</span>{% endfor %}
+                                {% else %}<span class="muted">—</span>{% endif %}
                             </td>
                             <td class="row-actions">
-                                <details class="menu-pop">
-                                    <summary>⋯</summary>
-                                    <div class="pop">
-                                        <form method="post" action="/admin/usuarios/{{ u.id }}/perfil" class="pop-form">
-                                            <span class="pop-title">Datos</span>
-                                            <input name="first_name" type="text" placeholder="Nombre" value="{{ u.firstName or '' }}">
-                                            <input name="last_name" type="text" placeholder="Apellido" value="{{ u.lastName or '' }}">
-                                            <input name="email" type="email" placeholder="Correo" value="{{ u.email or '' }}">
-                                            <input type="hidden" name="enabled" value="{{ 'true' if u.enabled else 'false' }}">
-                                            <button class="btn btn-ghost" type="submit">Guardar datos</button>
-                                        </form>
-                                        {% set ns = namespace(any=false) %}
-                                        {% for g in all_groups if g.id not in member_ids %}{% set ns.any = true %}{% endfor %}
-                                        {% if ns.any %}
-                                        <form method="post" action="/admin/usuarios/{{ u.id }}/grupos" class="pop-form">
-                                            <select name="group_id">
-                                                {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ g.path or g.name }}</option>{% endfor %}
-                                            </select>
-                                            <input type="hidden" name="action" value="add">
-                                            <button class="btn btn-ghost" type="submit">Añadir a grupo</button>
-                                        </form>
-                                        {% endif %}
-                                        <form method="post" action="/admin/usuarios/{{ u.id }}/password" class="pop-form">
-                                            <input name="password" type="text" placeholder="Nueva contraseña" required>
-                                            <label class="check"><input type="checkbox" name="temporary" checked> temporal</label>
-                                            <button class="btn btn-ghost" type="submit">Cambiar contraseña</button>
-                                        </form>
-                                        <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar" class="pop-form"
-                                              onsubmit="return confirm('¿Eliminar a {{ u.username }}? Esta acción no se puede deshacer.');">
-                                            <button class="btn btn-danger" type="submit">Eliminar usuario</button>
-                                        </form>
-                                    </div>
-                                </details>
+                                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dlg-{{ u.id }}').showModal()">Editar</button>
                             </td>
                         </tr>
                     {% else %}
@@ -161,22 +86,149 @@
         </section>
     </main>
 
+    <!-- ============ Diálogo: nuevo usuario ============ -->
+    <dialog id="dlg-new" class="modal">
+        <form method="dialog" class="modal-head">
+            <h2>Nuevo usuario</h2>
+            <button class="modal-x" value="cancel" aria-label="Cerrar">×</button>
+        </form>
+        <div class="modal-body">
+            <form method="post" action="/admin/usuarios" class="stack">
+                <label>Usuario<input name="username" required autocomplete="off"></label>
+                <label>Nombre<input name="first_name" autocomplete="off"></label>
+                <label>Apellido<input name="last_name" autocomplete="off"></label>
+                <label>Correo<input name="email" type="email" autocomplete="off"></label>
+                <label>Contraseña<input name="password" type="text" required autocomplete="off"></label>
+                <label>Rol inicial
+                    <select name="role">
+                        <option value="">Sin rol</option>
+                        {% for r in assignable_roles %}<option value="{{ r }}">{{ role_labels.get(r, r) }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" name="temporary" checked> Debe cambiar la contraseña la primera vez que entre</label>
+                <button class="btn btn-primary" type="submit">Crear usuario</button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ============ Diálogo por usuario: editar ============ -->
+    {% for u in users %}
+    {% set member_ids = u.groups | map(attribute="id") | list %}
+    <dialog id="dlg-{{ u.id }}" class="modal">
+        <form method="dialog" class="modal-head">
+            <h2>Editar usuario</h2>
+            <div class="modal-sub mono">{{ u.username }}</div>
+            <button class="modal-x" value="cancel" aria-label="Cerrar">×</button>
+        </form>
+        <div class="modal-body">
+            {% if edit_id == u.id and msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
+            {% if edit_id == u.id and err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
+
+            <section class="modal-section">
+                <h3>Datos</h3>
+                <form method="post" action="/admin/usuarios/{{ u.id }}/perfil" class="stack">
+                    <input type="hidden" name="edit" value="{{ u.id }}">
+                    <input type="hidden" name="enabled" value="{{ 'true' if u.enabled else 'false' }}">
+                    <label>Nombre<input name="first_name" value="{{ u.firstName or '' }}" autocomplete="off"></label>
+                    <label>Apellido<input name="last_name" value="{{ u.lastName or '' }}" autocomplete="off"></label>
+                    <label>Correo<input name="email" type="email" value="{{ u.email or '' }}" autocomplete="off"></label>
+                    <button class="btn btn-primary" type="submit">Guardar datos</button>
+                </form>
+            </section>
+
+            <section class="modal-section">
+                <h3>Estado</h3>
+                <div class="inline">
+                    <span class="badge {{ 'badge-on' if u.enabled else 'badge-off' }}">{{ "Activo" if u.enabled else "Inactivo" }}</span>
+                    <form method="post" action="/admin/usuarios/{{ u.id }}/estado">
+                        <input type="hidden" name="edit" value="{{ u.id }}">
+                        <input type="hidden" name="enabled" value="{{ 'false' if u.enabled else 'true' }}">
+                        <button class="btn btn-ghost" type="submit">{{ "Desactivar" if u.enabled else "Activar" }} cuenta</button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="modal-section">
+                <h3>Roles</h3>
+                <p class="section-help">Marca los roles que tendrá esta persona.</p>
+                <div class="chips">
+                {% for r in assignable_roles %}
+                    {% set has = r in u.realm_roles %}
+                    <form method="post" action="/admin/usuarios/{{ u.id }}/roles">
+                        <input type="hidden" name="edit" value="{{ u.id }}">
+                        <input type="hidden" name="role" value="{{ r }}">
+                        <input type="hidden" name="action" value="{{ 'remove' if has else 'add' }}">
+                        <button class="chip {{ 'chip-on' if has else '' }}" type="submit">{% if has %}✓ {% endif %}{{ role_labels.get(r, r) }}</button>
+                    </form>
+                {% endfor %}
+                </div>
+            </section>
+
+            <section class="modal-section">
+                <h3>Grupos</h3>
+                <p class="section-help">A qué áreas o equipos pertenece.</p>
+                <div class="chips">
+                {% for g in u.groups %}
+                    <form method="post" action="/admin/usuarios/{{ u.id }}/grupos">
+                        <input type="hidden" name="edit" value="{{ u.id }}">
+                        <input type="hidden" name="group_id" value="{{ g.id }}">
+                        <input type="hidden" name="action" value="remove">
+                        <button class="chip chip-on" type="submit" title="Quitar de {{ g.name }}">✓ {{ g.name }}</button>
+                    </form>
+                {% else %}
+                    <span class="muted">Sin grupos.</span>
+                {% endfor %}
+                </div>
+                {% set ns = namespace(any=false) %}
+                {% for g in all_groups if g.id not in member_ids %}{% set ns.any = true %}{% endfor %}
+                {% if ns.any %}
+                <form method="post" action="/admin/usuarios/{{ u.id }}/grupos" class="inline">
+                    <input type="hidden" name="edit" value="{{ u.id }}">
+                    <input type="hidden" name="action" value="add">
+                    <select name="group_id">
+                        {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ g.path or g.name }}</option>{% endfor %}
+                    </select>
+                    <button class="btn btn-ghost" type="submit">Añadir a grupo</button>
+                </form>
+                {% endif %}
+            </section>
+
+            <section class="modal-section">
+                <h3>Contraseña</h3>
+                <form method="post" action="/admin/usuarios/{{ u.id }}/password" class="stack">
+                    <input type="hidden" name="edit" value="{{ u.id }}">
+                    <label>Nueva contraseña<input name="password" type="text" required autocomplete="off"></label>
+                    <label class="check"><input type="checkbox" name="temporary" checked> Debe cambiarla la próxima vez que entre</label>
+                    <button class="btn btn-ghost" type="submit">Cambiar contraseña</button>
+                </form>
+            </section>
+
+            <section class="modal-section danger">
+                <h3>Eliminar</h3>
+                <p class="section-help">Se borra la cuenta de forma permanente.</p>
+                <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar"
+                      onsubmit="return confirm('¿Eliminar a {{ u.username }}? Esta acción no se puede deshacer.');">
+                    <button class="btn btn-danger" type="submit">Eliminar usuario</button>
+                </form>
+            </section>
+        </div>
+    </dialog>
+    {% endfor %}
+
     <script>
-        // Cerrar el submenú (⋯) al hacer clic fuera o con Escape.
-        document.addEventListener("click", function (e) {
-            document.querySelectorAll("details.menu-pop[open]").forEach(function (d) {
-                if (!d.contains(e.target)) {
-                    d.removeAttribute("open");
-                }
+        // Cerrar al hacer clic en el fondo del diálogo.
+        document.querySelectorAll("dialog.modal").forEach(function (d) {
+            d.addEventListener("click", function (e) {
+                if (e.target === d) { d.close(); }
             });
         });
-        document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") {
-                document.querySelectorAll("details.menu-pop[open]").forEach(function (d) {
-                    d.removeAttribute("open");
-                });
-            }
+        // Reabrir el diálogo del usuario recién editado (para ver el aviso).
+        {% if edit_id %}
+        window.addEventListener("DOMContentLoaded", function () {
+            var d = document.getElementById("dlg-{{ edit_id }}");
+            if (d) { d.showModal(); }
         });
+        {% endif %}
     </script>
 </body>
 </html>
