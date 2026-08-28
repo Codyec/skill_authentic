@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} · DEMACYA</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+
+<body class="app">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/dashboard">
+                <img src="/static/Logo_DEMA.png" alt="DEMA">
+                <span>DEMACYA</span>
+            </a>
+            <div class="topbar-right">
+                {% if user %}
+                <div class="user">
+                    <span class="avatar">{{ (user.get("preferred_username") or "U")[0] | upper }}</span>
+                    <span class="user-name">{{ user.get("preferred_username", "Usuario") }}</span>
+                </div>
+                {% endif %}
+                <a class="btn btn-ghost" href="/logout">Salir</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="page page-wide">
+        <nav class="crumbs"><a href="/dashboard">Panel</a> / <span>Usuarios</span></nav>
+        <h1 class="page-title">Usuarios</h1>
+        <p class="lead">Gestión de cuentas y permisos del realm DEMACYA.</p>
+
+        {% if msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
+        {% if err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
+
+        <!-- Alta -->
+        <section class="panel">
+            <h2>Nuevo usuario</h2>
+            <form method="post" action="/admin/usuarios" class="form-grid">
+                <label>Usuario<input name="username" required autocomplete="off"></label>
+                <label>Email<input name="email" type="email" autocomplete="off"></label>
+                <label>Nombre<input name="first_name" autocomplete="off"></label>
+                <label>Apellido<input name="last_name" autocomplete="off"></label>
+                <label>Contraseña<input name="password" type="text" required autocomplete="off"></label>
+                <label>Rol inicial
+                    <select name="role">
+                        <option value="">— ninguno —</option>
+                        {% for r in assignable_roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" name="temporary" checked> Contraseña temporal (debe cambiarla al entrar)</label>
+                <div class="form-actions"><button class="btn btn-primary" type="submit">Crear usuario</button></div>
+            </form>
+        </section>
+
+        <!-- Listado -->
+        <section class="panel">
+            <h2>{{ users | length }} usuario(s)</h2>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr><th>Usuario</th><th>Nombre</th><th>Email</th><th>Estado</th><th>Roles</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    {% for u in users %}
+                        <tr>
+                            <td class="mono">{{ u.username }}</td>
+                            <td>{{ (u.firstName or "") ~ " " ~ (u.lastName or "") }}</td>
+                            <td>{{ u.email or "—" }}</td>
+                            <td>
+                                <form method="post" action="/admin/usuarios/{{ u.id }}/estado">
+                                    <input type="hidden" name="enabled" value="{{ 'false' if u.enabled else 'true' }}">
+                                    <button class="pill {{ 'pill-on' if u.enabled else 'pill-off' }}" type="submit"
+                                            title="Clic para {{ 'deshabilitar' if u.enabled else 'habilitar' }}">
+                                        {{ 'Activo' if u.enabled else 'Inactivo' }}
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <div class="roles">
+                                {% for r in assignable_roles %}
+                                    {% set has = r in u.realm_roles %}
+                                    <form method="post" action="/admin/usuarios/{{ u.id }}/roles">
+                                        <input type="hidden" name="role" value="{{ r }}">
+                                        <input type="hidden" name="action" value="{{ 'remove' if has else 'add' }}">
+                                        <button class="tag {{ 'tag-on' if has else 'tag-off' }}" type="submit">{{ r }}</button>
+                                    </form>
+                                {% endfor %}
+                                </div>
+                            </td>
+                            <td class="row-actions">
+                                <details class="menu-pop">
+                                    <summary>⋯</summary>
+                                    <div class="pop">
+                                        <form method="post" action="/admin/usuarios/{{ u.id }}/password" class="pop-form">
+                                            <input name="password" type="text" placeholder="Nueva contraseña" required>
+                                            <label class="check"><input type="checkbox" name="temporary" checked> temporal</label>
+                                            <button class="btn btn-ghost" type="submit">Cambiar contraseña</button>
+                                        </form>
+                                        <form method="post" action="/admin/usuarios/{{ u.id }}/eliminar"
+                                              onsubmit="return confirm('¿Eliminar a {{ u.username }}? Esta acción no se puede deshacer.');">
+                                            <button class="btn btn-danger" type="submit">Eliminar usuario</button>
+                                        </form>
+                                    </div>
+                                </details>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="6" class="empty">Sin usuarios.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

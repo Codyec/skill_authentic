@@ -1,9 +1,12 @@
+import base64
+import json
 import os
 from urllib.parse import urlencode
 
+import httpx
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -83,6 +86,21 @@ REDIRECT_URI = os.getenv(
 SESSION_SECRET = os.getenv(
     "SESSION_SECRET",
 )
+
+# Endpoints internos (server-to-server) para la API de administración
+KC_TOKEN_URL = (
+    f"{KEYCLOAK_INTERNAL_URL}"
+    f"/realms/{KEYCLOAK_REALM}"
+    f"/protocol/openid-connect/token"
+)
+
+KC_ADMIN_BASE = (
+    f"{KEYCLOAK_INTERNAL_URL}"
+    f"/admin/realms/{KEYCLOAK_REALM}"
+)
+
+# Roles del realm que la plataforma sabe asignar desde el panel.
+ASSIGNABLE_ROLES = ["admin", "supervisor", "operador"]
 
 
 # ============================================================
@@ -178,6 +196,14 @@ oauth.register(
 
 MAIN_MENU = [
     {
+        "id": "usuarios",
+        "title": "Usuarios",
+        "description": "Alta, baja y modificación de usuarios y de sus permisos.",
+        "href": "/admin/usuarios",
+        "enabled": True,
+        "admin_only": True,
+    },
+    {
         "id": "proceso",
         "title": "Proceso",
         "description": "Supervisión y control del proceso productivo en tiempo real.",
@@ -199,6 +225,86 @@ MAIN_MENU = [
         "enabled": False,
     },
 ]
+
+
+def visible_menu(is_admin):
+    """Filtra el menú. Los items 'admin_only' solo se muestran a administradores."""
+    return [
+        item for item in MAIN_MENU
+        if not item.get("admin_only") or is_admin
+    ]
+
+
+# ============================================================
+# SESIÓN / AUTORIZACIÓN
+# ============================================================
+
+def _claims_from_token(access_token):
+    """Decodifica el JWT SIN verificar firma (solo para pintar el menú y
+    esconder rutas; el control real lo hace Keycloak con el token)."""
+    try:
+        payload = access_token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload))
+    except Exception:
+        return {}
+
+
+def get_user(request):
+    return request.session.get("user")
+
+
+def get_roles(request):
+    return request.session.get("roles", [])
+
+
+def is_admin(request):
+    """Admin de la plataforma = rol de realm 'admin', o permiso de Keycloak
+    para gestionar usuarios (realm-management/manage-users). Se calcula en
+    el callback y se guarda como booleano para no engordar la cookie."""
+    return bool(request.session.get("is_admin"))
+
+
+async def admin_access_token(request):
+    """Devuelve un access_token fresco del usuario en sesión, usando su
+    refresh_token. Keycloak rota el refresh_token: se guarda el nuevo."""
+    refresh_token = request.session.get("refresh_token")
+    if not refresh_token:
+        return None
+
+    data = {
+        "grant_type": "refresh_token",
+        "client_id": CLIENT_ID,
+        "refresh_token": refresh_token,
+    }
+    if CLIENT_SECRET:
+        data["client_secret"] = CLIENT_SECRET
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(KC_TOKEN_URL, data=data)
+
+    if resp.status_code != 200:
+        return None
+
+    tok = resp.json()
+    if tok.get("refresh_token"):
+        request.session["refresh_token"] = tok["refresh_token"]
+    return tok.get("access_token")
+
+
+async def kc_admin(request, method, path, **kwargs):
+    """Llama a la Admin REST API de Keycloak con el token del usuario."""
+    token = await admin_access_token(request)
+    if not token:
+        return None
+
+    async with httpx.AsyncClient(base_url=KC_ADMIN_BASE, timeout=15) as client:
+        return await client.request(
+            method,
+            path,
+            headers={"Authorization": f"Bearer {token}"},
+            **kwargs,
+        )
 
 
 # ============================================================
@@ -286,6 +392,30 @@ async def callback(request: Request):
     }
 
     # --------------------------------------------------------
+    # Roles del realm + refresh_token para la Admin API
+    # --------------------------------------------------------
+
+    claims = _claims_from_token(token.get("access_token", ""))
+
+    realm_roles = claims.get("realm_access", {}).get("roles", [])
+    mgmt_roles = (
+        claims.get("resource_access", {})
+        .get("realm-management", {})
+        .get("roles", [])
+    )
+
+    request.session["roles"] = [
+        r for r in realm_roles if r in ASSIGNABLE_ROLES
+    ]
+    request.session["is_admin"] = (
+        "admin" in realm_roles or "manage-users" in mgmt_roles
+    )
+
+    request.session["refresh_token"] = token.get(
+        "refresh_token"
+    )
+
+    # --------------------------------------------------------
     # Guardar ID Token para logout OIDC
     # --------------------------------------------------------
 
@@ -330,6 +460,8 @@ async def dashboard(request: Request):
     # Mostrar dashboard
     # --------------------------------------------------------
 
+    admin = is_admin(request)
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -337,8 +469,241 @@ async def dashboard(request: Request):
             "request": request,
             "title": "Dashboard DEMACYA",
             "user": user,
-            "menu": MAIN_MENU,
+            "is_admin": admin,
+            "menu": visible_menu(admin),
         },
+    )
+
+
+# ============================================================
+# ADMINISTRACIÓN DE USUARIOS
+# ============================================================
+# Requiere el rol de realm "admin". Las operaciones se ejecutan
+# contra la Admin REST API de Keycloak con el token del propio
+# usuario, así que Keycloak vuelve a validar cada permiso.
+
+def _require_admin(request):
+    """Devuelve (None, response) si no puede pasar; (user, None) si sí."""
+    user = get_user(request)
+    if not user:
+        return None, RedirectResponse(url="/", status_code=302)
+    if not is_admin(request):
+        return None, templates.TemplateResponse(
+            request=request,
+            name="forbidden.html",
+            context={"request": request, "title": "Sin permiso", "user": user},
+            status_code=403,
+        )
+    return user, None
+
+
+async def _load_users(request):
+    resp = await kc_admin(
+        request, "GET", "/users",
+        params={"briefRepresentation": "false", "max": 200},
+    )
+    if resp is None or resp.status_code != 200:
+        return None
+
+    users = resp.json()
+
+    # Roles de realm por usuario (para mostrar y editar).
+    for u in users:
+        r = await kc_admin(
+            request, "GET", f"/users/{u['id']}/role-mappings/realm"
+        )
+        u["realm_roles"] = (
+            sorted(x["name"] for x in r.json())
+            if r is not None and r.status_code == 200
+            else []
+        )
+    return users
+
+
+@app.get("/admin/usuarios", response_class=HTMLResponse)
+async def admin_users(request: Request, msg: str = "", err: str = ""):
+    user, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    users = await _load_users(request)
+    if users is None:
+        err = err or (
+            "No se pudo consultar Keycloak. Tu sesión pudo expirar "
+            "(vuelve a iniciar sesión) o tu usuario no tiene permisos "
+            "de administración de usuarios."
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_users.html",
+        context={
+            "request": request,
+            "title": "Usuarios",
+            "user": user,
+            "roles": get_roles(request),
+            "users": users or [],
+            "assignable_roles": ASSIGNABLE_ROLES,
+            "msg": msg,
+            "err": err,
+        },
+    )
+
+
+@app.post("/admin/usuarios")
+async def admin_users_create(
+    request: Request,
+    username: str = Form(...),
+    email: str = Form(""),
+    first_name: str = Form(""),
+    last_name: str = Form(""),
+    password: str = Form(...),
+    temporary: str = Form("on"),
+    role: str = Form(""),
+):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    body = {
+        "username": username.strip(),
+        "enabled": True,
+        "emailVerified": False,
+    }
+    if email.strip():
+        body["email"] = email.strip()
+    if first_name.strip():
+        body["firstName"] = first_name.strip()
+    if last_name.strip():
+        body["lastName"] = last_name.strip()
+
+    resp = await kc_admin(request, "POST", "/users", json=body)
+    if resp is None or resp.status_code not in (201, 204):
+        return _redir_users(err=_kc_error(resp, "No se pudo crear el usuario"))
+
+    location = resp.headers.get("Location", "")
+    user_id = location.rstrip("/").rsplit("/", 1)[-1]
+
+    pw = await kc_admin(
+        request, "PUT", f"/users/{user_id}/reset-password",
+        json={
+            "type": "password",
+            "value": password,
+            "temporary": temporary == "on",
+        },
+    )
+    if pw is None or pw.status_code not in (204, 200):
+        return _redir_users(
+            err="Usuario creado, pero no se pudo fijar la contraseña."
+        )
+
+    if role in ASSIGNABLE_ROLES:
+        await _set_role(request, user_id, role, add=True)
+
+    return _redir_users(msg=f"Usuario '{username}' creado.")
+
+
+@app.post("/admin/usuarios/{user_id}/estado")
+async def admin_users_toggle(request: Request, user_id: str, enabled: str = Form(...)):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    resp = await kc_admin(
+        request, "PUT", f"/users/{user_id}",
+        json={"enabled": enabled == "true"},
+    )
+    if resp is None or resp.status_code not in (204, 200):
+        return _redir_users(err=_kc_error(resp, "No se pudo cambiar el estado"))
+    return _redir_users(msg="Estado actualizado.")
+
+
+@app.post("/admin/usuarios/{user_id}/password")
+async def admin_users_password(
+    request: Request, user_id: str,
+    password: str = Form(...), temporary: str = Form("on"),
+):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    resp = await kc_admin(
+        request, "PUT", f"/users/{user_id}/reset-password",
+        json={"type": "password", "value": password, "temporary": temporary == "on"},
+    )
+    if resp is None or resp.status_code not in (204, 200):
+        return _redir_users(err=_kc_error(resp, "No se pudo cambiar la contraseña"))
+    return _redir_users(msg="Contraseña actualizada.")
+
+
+@app.post("/admin/usuarios/{user_id}/roles")
+async def admin_users_roles(
+    request: Request, user_id: str,
+    role: str = Form(...), action: str = Form(...),
+):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    if role not in ASSIGNABLE_ROLES:
+        return _redir_users(err="Rol no permitido.")
+
+    ok = await _set_role(request, user_id, role, add=(action == "add"))
+    if not ok:
+        return _redir_users(err="No se pudo actualizar el rol.")
+    return _redir_users(msg="Roles actualizados.")
+
+
+@app.post("/admin/usuarios/{user_id}/eliminar")
+async def admin_users_delete(request: Request, user_id: str):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    resp = await kc_admin(request, "DELETE", f"/users/{user_id}")
+    if resp is None or resp.status_code not in (204, 200):
+        return _redir_users(err=_kc_error(resp, "No se pudo eliminar el usuario"))
+    return _redir_users(msg="Usuario eliminado.")
+
+
+async def _set_role(request, user_id, role_name, add):
+    # Se resuelve el rol desde los mapeos del propio usuario (permiso
+    # manage-users), evitando GET /roles/{name} que exige view-realm.
+    src = "/available" if add else ""
+    listing = await kc_admin(
+        request, "GET", f"/users/{user_id}/role-mappings/realm{src}"
+    )
+    if listing is None or listing.status_code != 200:
+        return False
+
+    role = next(
+        (x for x in listing.json() if x.get("name") == role_name), None
+    )
+    if role is None:
+        # add: ya lo tiene · remove: no lo tenía → nada que hacer
+        return True
+
+    method = "POST" if add else "DELETE"
+    resp = await kc_admin(
+        request, method, f"/users/{user_id}/role-mappings/realm", json=[role]
+    )
+    return resp is not None and resp.status_code in (204, 200)
+
+
+def _kc_error(resp, fallback):
+    if resp is None:
+        return fallback + " (sesión expirada o sin permisos)."
+    try:
+        data = resp.json()
+        return data.get("errorMessage") or data.get("error") or fallback
+    except Exception:
+        return f"{fallback} (HTTP {resp.status_code})."
+
+
+def _redir_users(msg="", err=""):
+    return RedirectResponse(
+        url="/admin/usuarios?" + urlencode({"msg": msg, "err": err}),
+        status_code=303,
     )
 
 

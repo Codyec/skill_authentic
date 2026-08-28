@@ -42,5 +42,22 @@
       }
     }
   ],
-  "loginTheme": "demacya"
+  "loginTheme": "demacya",
+  "groups": [
+    {
+      "name": "platform-admins",
+      "path": "/platform-admins",
+      "realmRoles": [
+        "admin"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "query-users",
+          "manage-users",
+          "view-realm"
+        ]
+      }
+    }
+  ]
 }
