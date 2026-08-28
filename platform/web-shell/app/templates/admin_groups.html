@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} · DEMACYA</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+
+<body class="app">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/dashboard">
+                <img src="/static/Logo_DEMA.png" alt="DEMA">
+                <span>DEMACYA</span>
+            </a>
+            <div class="topbar-right">
+                {% if user %}
+                <div class="user">
+                    <span class="avatar">{{ (user.get("preferred_username") or "U")[0] | upper }}</span>
+                    <span class="user-name">{{ user.get("preferred_username", "Usuario") }}</span>
+                </div>
+                {% endif %}
+                <a class="btn btn-ghost" href="/logout">Salir</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="page page-wide">
+        <nav class="crumbs"><a href="/dashboard">Panel</a> / <a href="/admin/usuarios">Usuarios</a> / <span>Grupos</span></nav>
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">Grupos</h1>
+                <p class="lead">Organiza a los usuarios por área o función. La pertenencia se edita en <a href="/admin/usuarios">Usuarios</a>.</p>
+            </div>
+            <a class="btn btn-ghost" href="/admin/usuarios">Ir a usuarios</a>
+        </div>
+
+        {% if msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
+        {% if err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
+
+        <section class="panel">
+            <h2>Nuevo grupo</h2>
+            <form method="post" action="/admin/grupos" class="form-grid">
+                <label>Nombre<input name="name" required autocomplete="off" placeholder="p. ej. produccion"></label>
+                <div class="form-actions"><button class="btn btn-primary" type="submit">Crear grupo</button></div>
+            </form>
+            <p class="hint">Crear y eliminar grupos requiere el permiso <span class="mono">manage-realm</span> de Keycloak (ser miembro de <span class="mono">platform-admins</span>).</p>
+        </section>
+
+        <section class="panel">
+            <h2>{{ groups | length }} grupo(s)</h2>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr><th>Grupo</th><th>Ruta</th><th>Miembros</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    {% for g in groups %}
+                        <tr>
+                            <td class="mono">{{ g.name }}</td>
+                            <td class="mono">{{ g.path or "/" ~ g.name }}</td>
+                            <td>{{ g.member_count }}</td>
+                            <td class="row-actions">
+                                <form method="post" action="/admin/grupos/{{ g.id }}/eliminar"
+                                      onsubmit="return confirm('¿Eliminar el grupo {{ g.name }}? Los usuarios dejarán de pertenecer a él.');">
+                                    <button class="btn btn-danger" type="submit">Eliminar</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="empty">Sin grupos.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

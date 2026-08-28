@@ -32,8 +32,13 @@
 
     <main class="page page-wide">
         <nav class="crumbs"><a href="/dashboard">Panel</a> / <span>Usuarios</span></nav>
-        <h1 class="page-title">Usuarios</h1>
-        <p class="lead">Gestión de cuentas y permisos del realm DEMACYA.</p>
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">Usuarios</h1>
+                <p class="lead">Gestión de cuentas y permisos del realm DEMACYA.</p>
+            </div>
+            <a class="btn btn-ghost" href="/admin/grupos">Gestionar grupos</a>
+        </div>
 
         {% if msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
         {% if err %}<div class="alert alert-err">{{ err }}</div>{% endif %}
@@ -65,7 +70,7 @@
             <div class="table-wrap">
                 <table class="table">
                     <thead>
-                        <tr><th>Usuario</th><th>Nombre</th><th>Email</th><th>Estado</th><th>Roles</th><th></th></tr>
+                        <tr><th>Usuario</th><th>Nombre</th><th>Email</th><th>Estado</th><th>Roles</th><th>Grupos</th><th></th></tr>
                     </thead>
                     <tbody>
                     {% for u in users %}
@@ -95,6 +100,29 @@
                                 {% endfor %}
                                 </div>
                             </td>
+                            <td>
+                                {% set member_ids = u.groups | map(attribute="id") | list %}
+                                <div class="roles">
+                                {% for g in u.groups %}
+                                    <form method="post" action="/admin/usuarios/{{ u.id }}/grupos">
+                                        <input type="hidden" name="group_id" value="{{ g.id }}">
+                                        <input type="hidden" name="action" value="remove">
+                                        <button class="tag tag-on" type="submit" title="Quitar de {{ g.name }}">{{ g.name }}</button>
+                                    </form>
+                                {% endfor %}
+                                </div>
+                                {% set ns = namespace(any=false) %}
+                                {% for g in all_groups if g.id not in member_ids %}{% set ns.any = true %}{% endfor %}
+                                {% if ns.any %}
+                                <form method="post" action="/admin/usuarios/{{ u.id }}/grupos" class="group-add">
+                                    <input type="hidden" name="action" value="add">
+                                    <select name="group_id">
+                                        {% for g in all_groups if g.id not in member_ids %}<option value="{{ g.id }}">{{ g.path or g.name }}</option>{% endfor %}
+                                    </select>
+                                    <button class="tag tag-off" type="submit">+ añadir</button>
+                                </form>
+                                {% endif %}
+                            </td>
                             <td class="row-actions">
                                 <details class="menu-pop">
                                     <summary>⋯</summary>
@@ -113,7 +141,7 @@
                             </td>
                         </tr>
                     {% else %}
-                        <tr><td colspan="6" class="empty">Sin usuarios.</td></tr>
+                        <tr><td colspan="7" class="empty">Sin usuarios.</td></tr>
                     {% endfor %}
                     </tbody>
                 </table>

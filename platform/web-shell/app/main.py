@@ -204,6 +204,14 @@ MAIN_MENU = [
         "admin_only": True,
     },
     {
+        "id": "grupos",
+        "title": "Grupos",
+        "description": "Crear grupos y organizar a los usuarios por área o función.",
+        "href": "/admin/grupos",
+        "enabled": True,
+        "admin_only": True,
+    },
+    {
         "id": "proceso",
         "title": "Proceso",
         "description": "Supervisión y control del proceso productivo en tiempo real.",
@@ -520,7 +528,7 @@ async def _load_users(request):
 
     users = resp.json()
 
-    # Roles de realm por usuario (para mostrar y editar).
+    # Roles de realm y grupos por usuario (para mostrar y editar).
     for u in users:
         r = await kc_admin(
             request, "GET", f"/users/{u['id']}/role-mappings/realm"
@@ -530,7 +538,47 @@ async def _load_users(request):
             if r is not None and r.status_code == 200
             else []
         )
+
+        g = await kc_admin(request, "GET", f"/users/{u['id']}/groups")
+        u["groups"] = (
+            [
+                {"id": x["id"], "name": x["name"], "path": x.get("path", "")}
+                for x in g.json()
+            ]
+            if g is not None and g.status_code == 200
+            else []
+        )
     return users
+
+
+async def _load_groups(request):
+    """Lista los grupos del realm con su nº de miembros."""
+    resp = await kc_admin(
+        request, "GET", "/groups",
+        params={"briefRepresentation": "true", "max": 200},
+    )
+    if resp is None or resp.status_code != 200:
+        return None
+
+    groups = []
+
+    def flatten(items):
+        for it in items:
+            groups.append(it)
+            if it.get("subGroups"):
+                flatten(it["subGroups"])
+
+    flatten(resp.json())
+
+    for grp in groups:
+        m = await kc_admin(
+            request, "GET", f"/groups/{grp['id']}/members",
+            params={"max": 1000},
+        )
+        grp["member_count"] = (
+            len(m.json()) if m is not None and m.status_code == 200 else "?"
+        )
+    return groups
 
 
 @app.get("/admin/usuarios", response_class=HTMLResponse)
@@ -547,6 +595,8 @@ async def admin_users(request: Request, msg: str = "", err: str = ""):
             "de administración de usuarios."
         )
 
+    groups = await _load_groups(request) or []
+
     return templates.TemplateResponse(
         request=request,
         name="admin_users.html",
@@ -557,6 +607,7 @@ async def admin_users(request: Request, msg: str = "", err: str = ""):
             "roles": get_roles(request),
             "users": users or [],
             "assignable_roles": ASSIGNABLE_ROLES,
+            "all_groups": groups,
             "msg": msg,
             "err": err,
         },
@@ -718,6 +769,103 @@ def _redir_users(msg="", err=""):
         url="/admin/usuarios?" + urlencode({"msg": msg, "err": err}),
         status_code=303,
     )
+
+
+def _redir_groups(msg="", err=""):
+    return RedirectResponse(
+        url="/admin/grupos?" + urlencode({"msg": msg, "err": err}),
+        status_code=303,
+    )
+
+
+# ============================================================
+# GESTIÓN DE GRUPOS
+# ============================================================
+# Listar grupos y la pertenencia de usuarios solo necesita
+# query-groups + manage-users. Crear/eliminar grupo exige
+# manage-realm (ver README): miembro del grupo platform-admins.
+
+_NEED_MANAGE_REALM = (
+    "Necesitas el permiso 'manage-realm' de Keycloak para esto "
+    "(añádete al grupo platform-admins). Ver platform/web-shell/README.md."
+)
+
+
+@app.get("/admin/grupos", response_class=HTMLResponse)
+async def admin_groups(request: Request, msg: str = "", err: str = ""):
+    user, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    groups = await _load_groups(request)
+    if groups is None:
+        err = err or (
+            "No se pudieron consultar los grupos en Keycloak "
+            "(sesión expirada o sin permisos)."
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_groups.html",
+        context={
+            "request": request,
+            "title": "Grupos",
+            "user": user,
+            "groups": groups or [],
+            "msg": msg,
+            "err": err,
+        },
+    )
+
+
+@app.post("/admin/grupos")
+async def admin_groups_create(request: Request, name: str = Form(...)):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    name = name.strip()
+    if not name:
+        return _redir_groups(err="El nombre del grupo no puede estar vacío.")
+
+    resp = await kc_admin(request, "POST", "/groups", json={"name": name})
+    if resp is not None and resp.status_code == 403:
+        return _redir_groups(err=_NEED_MANAGE_REALM)
+    if resp is None or resp.status_code not in (201, 204):
+        return _redir_groups(err=_kc_error(resp, "No se pudo crear el grupo"))
+    return _redir_groups(msg=f"Grupo '{name}' creado.")
+
+
+@app.post("/admin/grupos/{group_id}/eliminar")
+async def admin_groups_delete(request: Request, group_id: str):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    resp = await kc_admin(request, "DELETE", f"/groups/{group_id}")
+    if resp is not None and resp.status_code == 403:
+        return _redir_groups(err=_NEED_MANAGE_REALM)
+    if resp is None or resp.status_code not in (204, 200):
+        return _redir_groups(err=_kc_error(resp, "No se pudo eliminar el grupo"))
+    return _redir_groups(msg="Grupo eliminado.")
+
+
+@app.post("/admin/usuarios/{user_id}/grupos")
+async def admin_users_groups(
+    request: Request, user_id: str,
+    group_id: str = Form(...), action: str = Form(...),
+):
+    _, deny = _require_admin(request)
+    if deny:
+        return deny
+
+    method = "PUT" if action == "add" else "DELETE"
+    resp = await kc_admin(
+        request, method, f"/users/{user_id}/groups/{group_id}"
+    )
+    if resp is None or resp.status_code not in (204, 200):
+        return _redir_users(err=_kc_error(resp, "No se pudo actualizar el grupo"))
+    return _redir_users(msg="Grupos del usuario actualizados.")
 
 
 # ============================================================

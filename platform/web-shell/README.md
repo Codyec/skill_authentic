@@ -28,6 +28,30 @@ Se agregan/quitan por proyecto. Los `admin_only` solo se ven si el usuario es ad
 - Permite: crear usuario (con contraseña temporal), habilitar/deshabilitar, cambiar
   contraseña, eliminar y asignar/quitar los roles `admin` / `supervisor` / `operador`.
 
+## Grupos (`/admin/grupos`)
+
+- Listar grupos con su nº de miembros y **crear / eliminar** grupos.
+- La **pertenencia** de cada usuario se edita en la columna *Grupos* de `/admin/usuarios`
+  (chips para quitar, desplegable para añadir).
+- Ver y editar la pertenencia solo necesita `manage-users` + `query-groups`.
+  **Crear o eliminar** un grupo necesita el permiso `manage-realm` de Keycloak.
+- Qué roles otorga cada grupo se configura en la consola de Keycloak (fuera de este panel).
+
+### Dar `manage-realm` (una vez, en la instancia ya creada)
+
+El grupo `platform-admins` solo existe en instalaciones nuevas. En la actual, con una
+cuenta admin del realm `master`:
+
+```bash
+docker exec -it keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080 --realm master --user <admin-maestro>
+docker exec -it keycloak /opt/keycloak/bin/kcadm.sh add-roles -r DEMACYA \
+  --uusername empresa-admin --cclientid realm-management --rolename manage-realm
+```
+
+o en la consola: Users → (usuario) → Role mapping → Assign role → filtrar por clients →
+`realm-management` → `manage-realm`. Después, cerrar sesión y volver a entrar en el panel.
+
 ## Ejecutar
 
 ```bash

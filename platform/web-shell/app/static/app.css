@@ -411,6 +411,32 @@ body.auth {
     color: var(--text-faint);
 }
 
+.hint .mono {
+    font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color: var(--text-dim);
+}
+
+.page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.group-add {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.group-add select {
+    height: 28px;
+    font-size: 11px;
+    padding: 0 8px;
+    max-width: 160px;
+}
+
 .form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
