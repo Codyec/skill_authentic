@@ -590,9 +590,9 @@ async def admin_users(request: Request, msg: str = "", err: str = ""):
     users = await _load_users(request)
     if users is None:
         err = err or (
-            "No se pudo consultar Keycloak. Tu sesión pudo expirar "
-            "(vuelve a iniciar sesión) o tu usuario no tiene permisos "
-            "de administración de usuarios."
+            "No se pudo cargar la lista de usuarios. Tu sesión pudo caducar "
+            "(vuelve a iniciar sesión) o tu cuenta no tiene permisos de "
+            "administración."
         )
 
     groups = await _load_groups(request) or []
@@ -755,13 +755,20 @@ async def _set_role(request, user_id, role_name, add):
 
 
 def _kc_error(resp, fallback):
+    """Mensaje en lenguaje llano. Nunca expone el texto crudo del proveedor
+    de identidad."""
     if resp is None:
-        return fallback + " (sesión expirada o sin permisos)."
-    try:
-        data = resp.json()
-        return data.get("errorMessage") or data.get("error") or fallback
-    except Exception:
-        return f"{fallback} (HTTP {resp.status_code})."
+        return (
+            fallback
+            + ". Es posible que tu sesión haya caducado: vuelve a iniciar sesión."
+        )
+    if resp.status_code in (401, 403):
+        return "No tienes permiso para realizar esta acción."
+    if resp.status_code == 409:
+        return "Ya existe un registro con esos datos."
+    if resp.status_code == 404:
+        return "El registro ya no existe."
+    return fallback + "."
 
 
 def _redir_users(msg="", err=""):
@@ -786,8 +793,8 @@ def _redir_groups(msg="", err=""):
 # manage-realm (ver README): miembro del grupo platform-admins.
 
 _NEED_MANAGE_REALM = (
-    "Necesitas el permiso 'manage-realm' de Keycloak para esto "
-    "(añádete al grupo platform-admins). Ver platform/web-shell/README.md."
+    "No tienes permisos para crear o eliminar grupos. "
+    "Pide a un administrador que te los habilite."
 )
 
 
@@ -800,8 +807,8 @@ async def admin_groups(request: Request, msg: str = "", err: str = ""):
     groups = await _load_groups(request)
     if groups is None:
         err = err or (
-            "No se pudieron consultar los grupos en Keycloak "
-            "(sesión expirada o sin permisos)."
+            "No se pudo cargar la lista de grupos. Tu sesión pudo caducar "
+            "o tu cuenta no tiene permisos suficientes."
         )
 
     return templates.TemplateResponse(
