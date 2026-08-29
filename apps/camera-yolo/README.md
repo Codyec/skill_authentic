@@ -102,7 +102,28 @@ docker compose -p camera-yolo -f docker-compose.yml -f docker-compose.gpu.yml up
 > **Licencia:** la imagen incluye `libMVSDK.so` (SDK propietario MindVision).
 > **No publicar la imagen en un registro público.** Build local únicamente.
 
-## Deuda técnica restante
+## Pendientes / limitaciones conocidas
 
-- `WIDTH/HEIGHT` (1280×1024), `FRAME_SPEED` y varios ajustes siguen fijos en `main.py`.
-- La prueba del contenedor contra la cámara real está pendiente (host Linux con NIC GigE).
+**Propiedades y métodos** (detalle y tabla completa en
+[`../../docs/camera-hardware.md`](../../docs/camera-hardware.md#pendientes-de-resolver--propiedades-y-métodos)):
+
+1. **Resolución / ROI / binning fijos** — `ImageResolution` es un struct, no está expuesto;
+   la resolución está clavada en 1280×1024 en `camera_loop()`.
+2. **`_NEEDS_STOP` sin verificar** — qué propiedades exigen parar la adquisición es conjetura.
+3. **Rangos no aplicados en la UI** — el panel no usa el `range` de cada propiedad (sin min/max).
+4. **Enums como enteros** — `media_type`, `clr_temp_mode`, `hdr_gain_mode`, `preset_clr_temp`
+   (falta mapear los enum de `CameraDefine.h`).
+5. **`ae_algorithm` / `bayer_dec_algorithm` fuera** — llevan un arg extra `iIspProcessor`.
+6. **`gain_r/g/b`** expuestas pero sin efecto en sensor monocromo.
+7. **Structs sin exponer** — `AeWindow`, `WbWindow`, `UserClrTempMatrix`, `Denoise3DParams`, LUT…
+8. **Métodos sin exponer** — perfiles a archivo, cargar de grupo del flash, reset de fábrica,
+   LED/anillo de luz, calibración de píxeles muertos.
+9. **`acquisition_frame_rate`** depende del parche ctypes `camera_get/set_frame_rate`.
+10. **Ciclo de vida** — falta `CameraStop` antes de `CameraUnInit` + manejador de `SIGTERM` +
+    `atexit`; un kill forzado deja la cámara tomada ~1 min.
+11. **Contenedor sin probar con cámara** — host Linux con NIC GigE.
+12. **`camera_config.json`** genera ruido en git (cambia `saved_at` en cada guardado).
+
+**Otros:**
+
+- `WIDTH/HEIGHT`, `FRAME_SPEED` y otros ajustes siguen fijos en `main.py`.

@@ -33,7 +33,11 @@ Estructura de monorepo, cámara aislada en `services/camera-service/`, SDK vendo
 > **Nota (2026-08-28):** el panel de propiedades + `camera_config.json` como fuente de verdad
 > ya se integró en `apps/camera-yolo` (contenedor de inferencia), con `Dockerfile` multi-arch
 > sobre la base Ultralytics (GPU / CPU / Raspberry Pi 5). El módulo `apps/camera-yolo/camera_props.py`
-> es candidato a compartirse con este refactor. Esto NO sustituye la Fase 4 (HAL + FakeBackend + API).
+> cubre ~48 propiedades escalares R/W + acciones (`once_wb`, `once_bb`, `save_to_camera`) y es
+> candidato a compartirse con este refactor. Esto NO sustituye la Fase 4 (HAL + FakeBackend + API).
+> **Pendientes de propiedades/métodos** (rangos en UI, enums sin mapear, ROI/binning, ciclo de
+> vida `CameraStop`+`SIGTERM`, structs sin exponer): ver la tabla en
+> [`camera-hardware.md`](camera-hardware.md#pendientes-de-resolver--propiedades-y-métodos).
 
 - HAL `CameraBackend`: `MvsdkBackend` (real) + `FakeBackend` (frames sintéticos, para CI/dev).
 - Core sin framework: adquisición, gestor de propiedades (basado en el `property_definitions()`
