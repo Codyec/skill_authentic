@@ -31,263 +31,147 @@ import time
 # ======================================================================
 
 def property_definitions():
-    """Metadatos estáticos. NO lee la cámara."""
+    """
+    Metadatos estáticos de TODAS las propiedades escalares R/W que expone
+    el SDK para esta cámara. NO lee la cámara. Base:
+    services/camera-service/legacy/properties_report.txt (escaneo de la
+    HT-GE134GM) + pares CameraGet/CameraSet escalares de mvsdk.py.
+    """
+    def P(pid, label, section, typ, base=None, **extra):
+        d = {"id": pid, "label": label, "section": section, "type": typ}
+        if base:
+            d["get"] = "CameraGet" + base
+            d["set"] = "CameraSet" + base
+        d.update(extra)
+        return d
+
+    ROT = [{"value": 0, "label": "0\u00b0"}, {"value": 1, "label": "90\u00b0"},
+           {"value": 2, "label": "180\u00b0"}, {"value": 3, "label": "270\u00b0"}]
+
     return [
-        {
-            "id": "auto_exposure",
-            "label": "Exposición Automática",
-            "section": "ExposureControl",
-            "type": "bool",
-            "get": "CameraGetAeState",
-            "set": "CameraSetAeState",
-        },
-        {
-            "id": "exposure_us",
-            "label": "Tiempo de Exposición",
-            "section": "ExposureControl",
-            "unit": "µs",
-            "type": "float",
-            "get": "CameraGetExposureTime",
-            "set": "CameraSetExposureTime",
-            "range": "CameraGetExposureTimeRange",
-        },
-        {
-            "id": "analog_gain",
-            "label": "Ganancia Analógica",
-            "section": "ExposureControl",
-            "type": "int",
-            "get": "CameraGetAnalogGain",
-            "set": "CameraSetAnalogGain",
-            "range": "CameraGetAeAnalogGainRange",
-        },
-        {
-            "id": "analog_gain_x",
-            "label": "Ganancia Analógica X",
-            "section": "ExposureControl",
-            "type": "float",
-            "get": "CameraGetAnalogGainX",
-            "set": "CameraSetAnalogGainX",
-            "range": "CameraGetAnalogGainXRange",
-        },
-        {
-            "id": "gamma",
-            "label": "Gamma",
-            "section": "ImageFormatControl",
-            "type": "int",
-            "get": "CameraGetGamma",
-            "set": "CameraSetGamma",
-        },
-        {
-            "id": "contrast",
-            "label": "Contraste",
-            "section": "ImageFormatControl",
-            "type": "int",
-            "get": "CameraGetContrast",
-            "set": "CameraSetContrast",
-        },
-        {
-            "id": "saturation",
-            "label": "Saturación",
-            "section": "ImageFormatControl",
-            "type": "int",
-            "get": "CameraGetSaturation",
-            "set": "CameraSetSaturation",
-        },
-        {
-            "id": "mirror_h",
-            "label": "Espejo Horizontal",
-            "section": "ImageFormatControl",
-            "type": "bool_index",
-            "index": 0,
-            "get": "CameraGetMirror",
-            "set": "CameraSetMirror",
-        },
-        {
-            "id": "mirror_v",
-            "label": "Espejo Vertical",
-            "section": "ImageFormatControl",
-            "type": "bool_index",
-            "index": 1,
-            "get": "CameraGetMirror",
-            "set": "CameraSetMirror",
-        },
-        {
-            "id": "rotate",
-            "label": "Rotación",
-            "section": "ImageFormatControl",
-            "type": "enum",
-            "options": [
-                {"value": 0, "label": "0°"},
-                {"value": 1, "label": "90°"},
-                {"value": 2, "label": "180°"},
-                {"value": 3, "label": "270°"},
-            ],
-            "get": "CameraGetRotate",
-            "set": "CameraSetRotate",
-        },
-        {
-            "id": "inverse",
-            "label": "Invertir Imagen",
-            "section": "ImageFormatControl",
-            "type": "bool",
-            "get": "CameraGetInverse",
-            "set": "CameraSetInverse",
-        },
-        {
-            "id": "anti_flick",
-            "label": "Anti Parpadeo",
-            "section": "ExposureControl",
-            "type": "bool",
-            "get": "CameraGetAntiFlick",
-            "set": "CameraSetAntiFlick",
-        },
-        {
-            "id": "light_frequency",
-            "label": "Frecuencia Anti Parpadeo",
-            "section": "ExposureControl",
-            "type": "enum",
-            "options": [
-                {"value": 0, "label": "50 Hz"},
-                {"value": 1, "label": "60 Hz"},
-            ],
-            "get": "CameraGetLightFrequency",
-            "set": "CameraSetLightFrequency",
-        },
-        {
-            "id": "frame_speed",
-            "label": "Velocidad de Cuadro",
-            "section": "AcquisitionControl",
-            "type": "enum",
-            "options": [
-                {"value": 0, "label": "Bajo"},
-                {"value": 1, "label": "Normal"},
-                {"value": 2, "label": "Alto"},
-                {"value": 3, "label": "Súper"},
-            ],
-            "get": "CameraGetFrameSpeed",
-            "set": "CameraSetFrameSpeed",
-        },
-        {
-            "id": "trigger_mode",
-            "label": "Modo de Disparo",
-            "section": "TriggerControl",
-            "type": "enum",
-            "options": [
-                {"value": 0, "label": "Continuo"},
-                {"value": 1, "label": "Disparo por Software"},
-                {"value": 2, "label": "Disparo por Hardware / Externo"},
-            ],
-            "get": "CameraGetTriggerMode",
-            "set": "CameraSetTriggerMode",
-        },
-        {
-            "id": "trigger_count",
-            "label": "Cantidad de Disparos",
-            "section": "TriggerControl",
-            "type": "int",
-            "get": "CameraGetTriggerCount",
-            "set": "CameraSetTriggerCount",
-        },
-        {
-            "id": "trigger_delay_us",
-            "label": "Retardo de Disparo",
-            "section": "TriggerControl",
-            "unit": "µs",
-            "type": "int",
-            "get": "CameraGetTriggerDelayTime",
-            "set": "CameraSetTriggerDelayTime",
-        },
-        {
-            "id": "strobe_mode",
-            "label": "Modo de Flash (Strobe)",
-            "section": "DigitalIOControl",
-            "type": "enum",
-            "options": [
-                {"value": 0, "label": "Sync automático con trigger"},
-                {"value": 1, "label": "Sync manual (delay + pulso)"},
-                {"value": 2, "label": "Siempre alto"},
-                {"value": 3, "label": "Siempre bajo"},
-            ],
-            "get": "CameraGetStrobeMode",
-            "set": "CameraSetStrobeMode",
-        },
-        {
-            "id": "strobe_delay_us",
-            "label": "Retardo de Flash",
-            "section": "DigitalIOControl",
-            "unit": "µs",
-            "type": "int",
-            "get": "CameraGetStrobeDelayTime",
-            "set": "CameraSetStrobeDelayTime",
-        },
-        {
-            "id": "parameter_mode",
-            "label": "Modo de Carga de Parámetros",
-            "section": "DeviceControl",
-            "type": "enum",
-            "options": [
-                {"value": 0, "label": "Por modelo"},
-                {"value": 1, "label": "Por nombre de dispositivo"},
-                {"value": 2, "label": "Por número de serie"},
-                {"value": 3, "label": "En el dispositivo (flash)"},
-            ],
-            "get": "CameraGetParameterMode",
-            "set": "CameraSetParameterMode",
-        },
-        {
-            "id": "trans_pack_len",
-            "label": "Tamaño de Paquete de Red",
-            "section": "GigEVisionControl",
-            "type": "int",
-            "get": "CameraGetTransPackLen",
-            "set": "CameraSetTransPackLen",
-        },
-        {
-            "id": "isp_processor",
-            "label": "Procesador ISP",
-            "section": "ImageFormatControl",
-            "type": "enum",
-            "options": [
-                {"value": 0, "label": "Software (PC)"},
-                {"value": 1, "label": "Hardware (en la cámara)"},
-            ],
-            "get": "CameraGetIspProcessor",
-            "set": "CameraSetIspProcessor",
-        },
-        {
-            "id": "black_level",
-            "label": "Nivel de Negro",
-            "section": "ImageFormatControl",
-            "type": "int",
-            "get": "CameraGetBlackLevel",
-            "set": "CameraSetBlackLevel",
-        },
-        {
-            "id": "white_level",
-            "label": "Nivel de Blanco",
-            "section": "ImageFormatControl",
-            "type": "int",
-            "get": "CameraGetWhiteLevel",
-            "set": "CameraSetWhiteLevel",
-        },
-        {
-            "id": "noise_filter",
-            "label": "Filtro de Ruido",
-            "section": "ImageFormatControl",
-            "type": "bool",
-            "get": "CameraGetNoiseFilterState",
-            "set": "CameraSetNoiseFilter",
-        },
-        {
-            "id": "acquisition_frame_rate",
-            "label": "Frecuencia de Adquisición",
-            "section": "AcquisitionControl",
-            "unit": "FPS",
-            "type": "float",
-            "native": True,
-        },
+        # ---- Exposici\u00f3n ----
+        P("auto_exposure", "Exposici\u00f3n autom\u00e1tica", "Exposici\u00f3n", "bool", "AeState"),
+        P("ae_target", "Objetivo de auto-exposici\u00f3n", "Exposici\u00f3n", "int", "AeTarget"),
+        P("ae_threshold", "Umbral de auto-exposici\u00f3n", "Exposici\u00f3n", "int", "AeThreshold"),
+        P("exposure_us", "Tiempo de exposici\u00f3n", "Exposici\u00f3n", "float", "ExposureTime",
+          unit="\u00b5s", range="CameraGetExposureTimeRange"),
+        P("analog_gain", "Ganancia anal\u00f3gica", "Exposici\u00f3n", "int", "AnalogGain",
+          range="CameraGetAeAnalogGainRange"),
+        P("analog_gain_x", "Ganancia anal\u00f3gica (x)", "Exposici\u00f3n", "float", "AnalogGainX",
+          range="CameraGetAnalogGainXRange"),
+        P("anti_flick", "Anti-parpadeo", "Exposici\u00f3n", "bool", "AntiFlick"),
+        P("light_frequency", "Frecuencia de red", "Exposici\u00f3n", "enum", "LightFrequency",
+          options=[{"value": 0, "label": "50 Hz"}, {"value": 1, "label": "60 Hz"}]),
+        P("hdr", "HDR", "Exposici\u00f3n", "bool", "HDR"),
+        P("hdr_gain_mode", "Modo de ganancia HDR", "Exposici\u00f3n", "int", "HDRGainMode"),
+
+        # ---- Imagen y color ----
+        P("gamma", "Gamma", "Imagen y color", "int", "Gamma"),
+        P("contrast", "Contraste", "Imagen y color", "int", "Contrast"),
+        P("saturation", "Saturaci\u00f3n", "Imagen y color", "int", "Saturation"),
+        P("sharpness", "Nitidez", "Imagen y color", "int", "Sharpness"),
+        P("black_level", "Nivel de negro", "Imagen y color", "int", "BlackLevel"),
+        P("white_level", "Nivel de blanco", "Imagen y color", "int", "WhiteLevel"),
+        P("gain_r", "Ganancia digital R", "Imagen y color", "rgb", component=0,
+          get="CameraGetGain", set="CameraSetGain"),
+        P("gain_g", "Ganancia digital G", "Imagen y color", "rgb", component=1,
+          get="CameraGetGain", set="CameraSetGain"),
+        P("gain_b", "Ganancia digital B", "Imagen y color", "rgb", component=2,
+          get="CameraGetGain", set="CameraSetGain"),
+        P("wb_mode", "Balance de blancos autom\u00e1tico", "Imagen y color", "bool", "WbMode"),
+        P("clr_temp_mode", "Modo de temperatura de color", "Imagen y color", "int", "ClrTempMode"),
+        P("preset_clr_temp", "Temperatura de color (preset)", "Imagen y color", "int", "PresetClrTemp"),
+        P("monochrome", "Forzar monocromo", "Imagen y color", "bool", "Monochrome"),
+        P("inverse", "Invertir imagen", "Imagen y color", "bool", "Inverse"),
+        P("lut_mode", "Modo LUT", "Imagen y color", "enum", "LutMode",
+          options=[{"value": 0, "label": "Param\u00e9trico"}, {"value": 1, "label": "Preset"},
+                   {"value": 2, "label": "Usuario"}]),
+        P("noise_filter", "Filtro de ruido 2D", "Imagen y color", "bool",
+          get="CameraGetNoiseFilterState", set="CameraSetNoiseFilter"),
+        P("correct_dead_pixel", "Correcci\u00f3n de p\u00edxeles muertos", "Imagen y color", "bool",
+          "CorrectDeadPixel"),
+
+        # ---- Formato ----
+        P("mirror_h", "Espejo horizontal", "Formato", "bool_index", index=0,
+          get="CameraGetMirror", set="CameraSetMirror"),
+        P("mirror_v", "Espejo vertical", "Formato", "bool_index", index=1,
+          get="CameraGetMirror", set="CameraSetMirror"),
+        P("rotate", "Rotaci\u00f3n", "Formato", "enum", "Rotate", options=ROT),
+        P("isp_processor", "Procesador ISP", "Formato", "enum", "IspProcessor",
+          options=[{"value": 0, "label": "Software (PC)"}, {"value": 1, "label": "Hardware (c\u00e1mara)"}]),
+        P("media_type", "Formato de p\u00edxel (\u00edndice)", "Formato", "int", "MediaType"),
+        P("undistort_enable", "Correcci\u00f3n de distorsi\u00f3n", "Formato", "bool", "UndistortEnable"),
+
+        # ---- Adquisici\u00f3n ----
+        P("frame_speed", "Velocidad de cuadro", "Adquisici\u00f3n", "enum", "FrameSpeed",
+          options=[{"value": 0, "label": "Baja"}, {"value": 1, "label": "Normal"},
+                   {"value": 2, "label": "Alta"}, {"value": 3, "label": "S\u00faper"}]),
+        P("acquisition_frame_rate", "Frecuencia de adquisici\u00f3n", "Adquisici\u00f3n", "float",
+          unit="FPS", native=True),
+
+        # ---- Disparo ----
+        P("trigger_mode", "Modo de disparo", "Disparo", "enum", "TriggerMode",
+          options=[{"value": 0, "label": "Continuo"}, {"value": 1, "label": "Software"},
+                   {"value": 2, "label": "Hardware / externo"}]),
+        P("trigger_count", "N\u00ba de disparos", "Disparo", "int", "TriggerCount"),
+        P("trigger_delay_us", "Retardo de disparo", "Disparo", "int", "TriggerDelayTime", unit="\u00b5s"),
+        P("ext_trig_delay_us", "Retardo disparo externo", "Disparo", "int", "ExtTrigDelayTime", unit="\u00b5s"),
+        P("ext_trig_jitter_us", "Jitter disparo externo", "Disparo", "int", "ExtTrigJitterTime", unit="\u00b5s"),
+        P("ext_trig_signal_type", "Tipo de se\u00f1al de disparo externo", "Disparo", "enum",
+          "ExtTrigSignalType",
+          options=[{"value": 0, "label": "Flanco de subida"}, {"value": 1, "label": "Flanco de bajada"},
+                   {"value": 2, "label": "Nivel alto"}, {"value": 3, "label": "Nivel bajo"}]),
+        P("ext_trig_shutter_type", "Obturador en disparo externo", "Disparo", "enum",
+          "ExtTrigShutterType",
+          options=[{"value": 0, "label": "Est\u00e1ndar"}, {"value": 1, "label": "Reset global (GRR)"}]),
+
+        # ---- E/S digital ----
+        P("strobe_mode", "Modo de flash (strobe)", "E/S digital", "enum", "StrobeMode",
+          options=[{"value": 0, "label": "Sync auto con disparo"}, {"value": 1, "label": "Sync manual"},
+                   {"value": 2, "label": "Siempre alto"}, {"value": 3, "label": "Siempre bajo"}]),
+        P("strobe_delay_us", "Retardo de flash", "E/S digital", "int", "StrobeDelayTime", unit="\u00b5s"),
+        P("strobe_pulse_width_us", "Ancho de pulso de flash", "E/S digital", "int", "StrobePulseWidth",
+          unit="\u00b5s"),
+        P("strobe_polarity", "Polaridad de flash invertida", "E/S digital", "bool", "StrobePolarity"),
+
+        # ---- Dispositivo / red ----
+        P("parameter_mode", "Modo de carga de par\u00e1metros", "Dispositivo", "enum", "ParameterMode",
+          options=[{"value": 0, "label": "Por modelo"}, {"value": 1, "label": "Por nombre"},
+                   {"value": 2, "label": "Por n\u00ba de serie"}, {"value": 3, "label": "En el dispositivo"}]),
+        P("trans_pack_len", "Tama\u00f1o de paquete de red", "Red (GigE)", "int", "TransPackLen"),
     ]
 
+
+CAMERA_ACTIONS = [
+    {"id": "once_wb", "label": "Balance de blancos (una vez)",
+     "help": "Calcula el balance de blancos con la escena actual."},
+    {"id": "once_bb", "label": "Nivel de negro (una vez)",
+     "help": "Ajusta el nivel de negro con la escena actual."},
+    {"id": "save_to_camera", "label": "Guardar en la c\u00e1mara (flash)",
+     "help": "Escribe la configuraci\u00f3n actual en la memoria no vol\u00e1til de la c\u00e1mara."},
+]
+
+
+def run_action(mvsdk, h_camera, name):
+    """Ejecuta un m\u00e9todo de acci\u00f3n del SDK. Devuelve (ok, mensaje)."""
+    try:
+        if name == "once_wb":
+            mvsdk.CameraSetOnceWB(h_camera)
+            return True, "Balance de blancos aplicado"
+        if name == "once_bb":
+            mvsdk.CameraSetOnceBB(h_camera)
+            return True, "Nivel de negro aplicado"
+        if name == "save_to_camera":
+            grp = 0
+            try:
+                grp = int(mvsdk.CameraGetCurrentParameterGroup(h_camera))
+            except Exception:
+                pass
+            mvsdk.CameraSaveParameter(h_camera, grp)
+            return True, f"Configuraci\u00f3n guardada en la c\u00e1mara (grupo {grp})"
+        return False, f"Acci\u00f3n desconocida: {name}"
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
 
 def definitions_by_id():
     return {p["id"]: p for p in property_definitions()}
@@ -326,6 +210,8 @@ def read_property(mvsdk, h_camera, p, native_get=None):
     try:
         if p["type"] == "bool_index":
             value = fn(h_camera, p["index"])
+        elif p["type"] == "rgb":
+            value = fn(h_camera)[p["component"]]
         else:
             value = fn(h_camera)
 
@@ -350,7 +236,7 @@ def _coerce(value, typ):
         if isinstance(value, str):
             return 1 if value.strip().lower() in ("1", "on", "true", "yes") else 0
         return 1 if bool(value) and value not in (0, "0") else 0
-    if typ == "int" or typ == "enum":
+    if typ in ("int", "enum", "rgb"):
         return int(float(value))
     if typ == "float":
         return float(value)
@@ -375,6 +261,11 @@ def write_property(mvsdk, h_camera, p, value, native_set=None):
 
         if typ == "bool_index":
             rc = fn(h_camera, p["index"], v)
+        elif typ == "rgb":
+            getfn = getattr(mvsdk, p["get"], None)
+            cur = list(getfn(h_camera)) if getfn else [v, v, v]
+            cur[p["component"]] = v
+            rc = fn(h_camera, int(cur[0]), int(cur[1]), int(cur[2]))
         else:
             rc = fn(h_camera, v)
 
@@ -417,6 +308,7 @@ _NEEDS_STOP = {
     "isp_processor",
     "trans_pack_len",
     "parameter_mode",
+    "media_type",
 }
 
 

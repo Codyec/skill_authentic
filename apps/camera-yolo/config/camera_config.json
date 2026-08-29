@@ -1,186 +1,340 @@
 {
-  "saved_at": "2026-08-28 21:27:15",
+  "saved_at": "2026-08-28 22:47:21",
   "camera_ip": "192.168.0.216",
   "properties": {
     "auto_exposure": {
-      "label": "Exposición Automática",
-      "section": "ExposureControl",
+      "label": "Exposición automática",
+      "section": "Exposición",
       "type": "bool",
       "value": 0,
       "ok": true
     },
+    "ae_target": {
+      "label": "Objetivo de auto-exposición",
+      "section": "Exposición",
+      "type": "int",
+      "value": 120,
+      "ok": true
+    },
+    "ae_threshold": {
+      "label": "Umbral de auto-exposición",
+      "section": "Exposición",
+      "type": "int",
+      "value": 10,
+      "ok": true
+    },
     "exposure_us": {
-      "label": "Tiempo de Exposición",
-      "section": "ExposureControl",
+      "label": "Tiempo de exposición",
+      "section": "Exposición",
       "type": "float",
       "value": 10000.0,
       "ok": true
     },
     "analog_gain": {
-      "label": "Ganancia Analógica",
-      "section": "ExposureControl",
+      "label": "Ganancia analógica",
+      "section": "Exposición",
       "type": "int",
       "value": 12,
       "ok": true
     },
     "analog_gain_x": {
-      "label": "Ganancia Analógica X",
-      "section": "ExposureControl",
+      "label": "Ganancia analógica (x)",
+      "section": "Exposición",
       "type": "float",
       "value": 6.0,
       "ok": true
     },
+    "anti_flick": {
+      "label": "Anti-parpadeo",
+      "section": "Exposición",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "light_frequency": {
+      "label": "Frecuencia de red",
+      "section": "Exposición",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "hdr": {
+      "label": "HDR",
+      "section": "Exposición",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "hdr_gain_mode": {
+      "label": "Modo de ganancia HDR",
+      "section": "Exposición",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
     "gamma": {
       "label": "Gamma",
-      "section": "ImageFormatControl",
+      "section": "Imagen y color",
       "type": "int",
       "value": 100,
       "ok": true
     },
     "contrast": {
       "label": "Contraste",
-      "section": "ImageFormatControl",
+      "section": "Imagen y color",
       "type": "int",
       "value": 100,
       "ok": true
     },
     "saturation": {
       "label": "Saturación",
-      "section": "ImageFormatControl",
+      "section": "Imagen y color",
       "type": "int",
       "value": 100,
       "ok": true
     },
+    "sharpness": {
+      "label": "Nitidez",
+      "section": "Imagen y color",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "black_level": {
+      "label": "Nivel de negro",
+      "section": "Imagen y color",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "white_level": {
+      "label": "Nivel de blanco",
+      "section": "Imagen y color",
+      "type": "int",
+      "value": 256,
+      "ok": true
+    },
+    "gain_r": {
+      "label": "Ganancia digital R",
+      "section": "Imagen y color",
+      "type": "rgb",
+      "value": 100,
+      "ok": true
+    },
+    "gain_g": {
+      "label": "Ganancia digital G",
+      "section": "Imagen y color",
+      "type": "rgb",
+      "value": 100,
+      "ok": true
+    },
+    "gain_b": {
+      "label": "Ganancia digital B",
+      "section": "Imagen y color",
+      "type": "rgb",
+      "value": 100,
+      "ok": true
+    },
+    "wb_mode": {
+      "label": "Balance de blancos automático",
+      "section": "Imagen y color",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "clr_temp_mode": {
+      "label": "Modo de temperatura de color",
+      "section": "Imagen y color",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "preset_clr_temp": {
+      "label": "Temperatura de color (preset)",
+      "section": "Imagen y color",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "monochrome": {
+      "label": "Forzar monocromo",
+      "section": "Imagen y color",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "inverse": {
+      "label": "Invertir imagen",
+      "section": "Imagen y color",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "lut_mode": {
+      "label": "Modo LUT",
+      "section": "Imagen y color",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "noise_filter": {
+      "label": "Filtro de ruido 2D",
+      "section": "Imagen y color",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "correct_dead_pixel": {
+      "label": "Corrección de píxeles muertos",
+      "section": "Imagen y color",
+      "type": "bool",
+      "value": 1,
+      "ok": true
+    },
     "mirror_h": {
-      "label": "Espejo Horizontal",
-      "section": "ImageFormatControl",
+      "label": "Espejo horizontal",
+      "section": "Formato",
       "type": "bool_index",
       "value": 0,
       "ok": true
     },
     "mirror_v": {
-      "label": "Espejo Vertical",
-      "section": "ImageFormatControl",
+      "label": "Espejo vertical",
+      "section": "Formato",
       "type": "bool_index",
       "value": 0,
       "ok": true
     },
     "rotate": {
       "label": "Rotación",
-      "section": "ImageFormatControl",
+      "section": "Formato",
       "type": "enum",
-      "value": 0,
-      "ok": true
-    },
-    "inverse": {
-      "label": "Invertir Imagen",
-      "section": "ImageFormatControl",
-      "type": "bool",
-      "value": 0,
-      "ok": true
-    },
-    "anti_flick": {
-      "label": "Anti Parpadeo",
-      "section": "ExposureControl",
-      "type": "bool",
-      "value": 0,
-      "ok": true
-    },
-    "light_frequency": {
-      "label": "Frecuencia Anti Parpadeo",
-      "section": "ExposureControl",
-      "type": "enum",
-      "value": 0,
-      "ok": true
-    },
-    "frame_speed": {
-      "label": "Velocidad de Cuadro",
-      "section": "AcquisitionControl",
-      "type": "enum",
-      "value": 2,
-      "ok": true
-    },
-    "trigger_mode": {
-      "label": "Modo de Disparo",
-      "section": "TriggerControl",
-      "type": "enum",
-      "value": 0,
-      "ok": true
-    },
-    "trigger_count": {
-      "label": "Cantidad de Disparos",
-      "section": "TriggerControl",
-      "type": "int",
-      "value": 1,
-      "ok": true
-    },
-    "trigger_delay_us": {
-      "label": "Retardo de Disparo",
-      "section": "TriggerControl",
-      "type": "int",
-      "value": 0,
-      "ok": true
-    },
-    "strobe_mode": {
-      "label": "Modo de Flash (Strobe)",
-      "section": "DigitalIOControl",
-      "type": "enum",
-      "value": 0,
-      "ok": true
-    },
-    "strobe_delay_us": {
-      "label": "Retardo de Flash",
-      "section": "DigitalIOControl",
-      "type": "int",
-      "value": 50,
-      "ok": true
-    },
-    "parameter_mode": {
-      "label": "Modo de Carga de Parámetros",
-      "section": "DeviceControl",
-      "type": "enum",
-      "value": 0,
-      "ok": true
-    },
-    "trans_pack_len": {
-      "label": "Tamaño de Paquete de Red",
-      "section": "GigEVisionControl",
-      "type": "int",
       "value": 0,
       "ok": true
     },
     "isp_processor": {
       "label": "Procesador ISP",
-      "section": "ImageFormatControl",
+      "section": "Formato",
       "type": "enum",
       "value": 0,
       "ok": true
     },
-    "black_level": {
-      "label": "Nivel de Negro",
-      "section": "ImageFormatControl",
+    "media_type": {
+      "label": "Formato de píxel (índice)",
+      "section": "Formato",
       "type": "int",
       "value": 0,
       "ok": true
     },
-    "white_level": {
-      "label": "Nivel de Blanco",
-      "section": "ImageFormatControl",
-      "type": "int",
-      "value": 256,
-      "ok": true
-    },
-    "noise_filter": {
-      "label": "Filtro de Ruido",
-      "section": "ImageFormatControl",
+    "undistort_enable": {
+      "label": "Corrección de distorsión",
+      "section": "Formato",
       "type": "bool",
       "value": 0,
       "ok": true
     },
+    "frame_speed": {
+      "label": "Velocidad de cuadro",
+      "section": "Adquisición",
+      "type": "enum",
+      "value": 2,
+      "ok": true
+    },
     "acquisition_frame_rate": {
-      "label": "Frecuencia de Adquisición",
-      "section": "AcquisitionControl",
+      "label": "Frecuencia de adquisición",
+      "section": "Adquisición",
       "type": "float",
+      "value": 0,
+      "ok": true
+    },
+    "trigger_mode": {
+      "label": "Modo de disparo",
+      "section": "Disparo",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "trigger_count": {
+      "label": "Nº de disparos",
+      "section": "Disparo",
+      "type": "int",
+      "value": 1,
+      "ok": true
+    },
+    "trigger_delay_us": {
+      "label": "Retardo de disparo",
+      "section": "Disparo",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "ext_trig_delay_us": {
+      "label": "Retardo disparo externo",
+      "section": "Disparo",
+      "type": "int",
+      "value": 0,
+      "ok": true
+    },
+    "ext_trig_jitter_us": {
+      "label": "Jitter disparo externo",
+      "section": "Disparo",
+      "type": "int",
+      "value": 1000,
+      "ok": true
+    },
+    "ext_trig_signal_type": {
+      "label": "Tipo de señal de disparo externo",
+      "section": "Disparo",
+      "type": "enum",
+      "value": 1,
+      "ok": true
+    },
+    "ext_trig_shutter_type": {
+      "label": "Obturador en disparo externo",
+      "section": "Disparo",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "strobe_mode": {
+      "label": "Modo de flash (strobe)",
+      "section": "E/S digital",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "strobe_delay_us": {
+      "label": "Retardo de flash",
+      "section": "E/S digital",
+      "type": "int",
+      "value": 50,
+      "ok": true
+    },
+    "strobe_pulse_width_us": {
+      "label": "Ancho de pulso de flash",
+      "section": "E/S digital",
+      "type": "int",
+      "value": 10,
+      "ok": true
+    },
+    "strobe_polarity": {
+      "label": "Polaridad de flash invertida",
+      "section": "E/S digital",
+      "type": "bool",
+      "value": 0,
+      "ok": true
+    },
+    "parameter_mode": {
+      "label": "Modo de carga de parámetros",
+      "section": "Dispositivo",
+      "type": "enum",
+      "value": 0,
+      "ok": true
+    },
+    "trans_pack_len": {
+      "label": "Tamaño de paquete de red",
+      "section": "Red (GigE)",
+      "type": "int",
       "value": 0,
       "ok": true
     }

@@ -28,8 +28,14 @@ hilo HTTP. Rutas:
 | `GET /control/save_config` | relee la cámara y reescribe el archivo |
 | `GET /control/reload_config` | recarga el archivo y lo re-aplica |
 
-El módulo `camera_props.py` (definiciones + lectura/escritura/persistencia) está portado de
-`services/camera-service/legacy/camera_service_FUNCIONAL_FINAL.py`.
+El módulo `camera_props.py` (definiciones + lectura/escritura/persistencia) cubre **todas
+las propiedades escalares R/W** que expone el SDK para esta cámara (~48: exposición, ganancias
+RGB, gamma/contraste/nitidez, LUT, balance de blancos, disparo interno y externo, strobe,
+red GigE…), según el escaneo `services/camera-service/legacy/properties_report.txt`.
+
+Además hay **acciones** (`POST /control/action` con `{"name": ...}`): `once_wb` (balance de
+blancos una vez), `once_bb` (nivel de negro una vez), `save_to_camera` (escribir en el flash
+de la cámara).
 
 Notas de comportamiento de esta cámara (HT-GE134GM):
 - Varias propiedades solo se escriben **en vivo**: si se hace `CameraStop` + `CameraPlay`

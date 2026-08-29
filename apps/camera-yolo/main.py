@@ -214,6 +214,10 @@ unsaved_changes = False
 # El próximo lote a aplicar viene del archivo (reload) -> no marca "sin guardar".
 _apply_from_file = False
 
+# Acción del SDK pendiente de ejecutar en el hilo de cámara (once_wb, etc.).
+pending_action = None
+action_result = ""
+
 # {id: {"set_ok", "verified", "message"}} — último resultado por propiedad.
 properties_status = {}
 
@@ -484,6 +488,8 @@ def props_snapshot():
             "last_save": properties_last_save,
             "dirty": properties_dirty,
             "unsaved": unsaved_changes,
+            "actions": camera_props.CAMERA_ACTIONS,
+            "action_result": action_result,
         }
 
 
@@ -514,7 +520,27 @@ def _apply_pending_properties(h_camera):
     lote pendiente. Escribe a la cámara y re-persiste camera_config.json.
     """
     global properties_dirty, properties_status, save_requested
-    global unsaved_changes, _apply_from_file
+    global unsaved_changes, _apply_from_file, pending_action, action_result
+
+    with props_lock:
+        act = pending_action
+        pending_action = None
+
+    if act:
+        ok, msg = camera_props.run_action(mvsdk, h_camera, act)
+        with props_lock:
+            action_result = f"{time.strftime('%H:%M:%S')} — {msg}"
+            if ok and act in ("once_wb", "once_bb"):
+                # cambió ganancias/nivel -> hay que releer y queda sin guardar
+                snap = camera_props.read_all(
+                    mvsdk, h_camera, native_get=_native_fr_get
+                )
+                for pid, entry in snap.items():
+                    if entry.get("ok"):
+                        desired_properties[pid] = entry.get("value")
+                unsaved_changes = True
+        print(f"[PROPS] Acción '{act}': {msg}")
+        return
 
     with props_lock:
         if save_requested and not properties_dirty:
@@ -575,6 +601,14 @@ def _bootstrap_properties(h_camera):
         with props_lock:
             desired_properties.clear()
             desired_properties.update(saved)
+            # Propiedades que aún no están en el archivo: leerlas de la
+            # cámara para que el panel las muestre con su valor real.
+            snap = camera_props.read_all(
+                mvsdk, h_camera, native_get=_native_fr_get
+            )
+            for pid, entry in snap.items():
+                if pid not in desired_properties and entry.get("ok"):
+                    desired_properties[pid] = entry.get("value")
 
         if "exposure_us" in saved:
             try:
@@ -2758,16 +2792,18 @@ input:focus, select:focus { outline: none; border-color: var(--brand); }
 
 .cam-prop {
     display: grid;
-    grid-template-columns: 1fr 160px auto;
-    gap: 12px;
+    grid-template-columns: 1fr auto;
+    gap: 6px 10px;
     align-items: center;
-    padding: 8px 0;
+    padding: 9px 0;
     border-bottom: 1px solid var(--line-soft);
     font-size: 13px;
 }
 
-.cam-prop > div:first-child { color: var(--text); }
+.cam-prop > div:first-child { grid-column: 1 / -1; color: var(--text); }
 .cam-prop small { color: var(--text-faint); margin-left: 6px; font-family: var(--mono); font-size: 11px; }
+
+.cam-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
 
 .cam-prop .cam-msg {
     grid-column: 1 / -1;
@@ -4442,6 +4478,20 @@ function renderCamProps(data) {
 
     let html = "";
 
+    const actions = data.actions || [];
+    if (actions.length) {
+        html += '<div class="section">Acciones</div><div class="cam-actions">';
+        actions.forEach(function (a) {
+            html += '<button class="btn btn-sm" title="' + (a.help || "")
+                + '" onclick="runAction(\'' + a.id + '\')">' + a.label + '</button>';
+        });
+        html += '</div>';
+        if (data.action_result) {
+            html += '<div class="cam-msg" style="margin-bottom:8px">'
+                + data.action_result + '</div>';
+        }
+    }
+
     Object.keys(bySection).forEach(function (section) {
 
         html += '<div class="section">' + section + '</div>';
@@ -4475,6 +4525,27 @@ function renderCamProps(data) {
     });
 
     camProps.innerHTML = html;
+}
+
+
+function runAction(name) {
+
+    camSetStatus("Ejecutando…");
+
+    fetch("/control/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name })
+    })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            camSetStatus(
+                data.ok ? data.message : ("Error: " + (data.error || data.message)),
+                data.ok ? "ok" : "err"
+            );
+            setTimeout(loadCamProps, 1200);
+        })
+        .catch(function () { camSetStatus("Error de comunicación", "err"); });
 }
 
 
@@ -5547,6 +5618,39 @@ class CameraHandler(
                     if accepted else "Ninguna propiedad válida"
                 )
             })
+
+            return
+
+
+        # ====================================================
+        # PROPIEDADES — ejecutar una acción del SDK
+        # ====================================================
+
+        if path == "/control/action":
+
+            global pending_action
+
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length) if length else b"{}"
+                name = json.loads(body.decode("utf-8")).get("name")
+            except Exception as exc:
+                self.send_json({"ok": False, "error": f"JSON inválido: {exc}"}, 400)
+                return
+
+            valid = {a["id"] for a in camera_props.CAMERA_ACTIONS}
+            if name not in valid:
+                self.send_json({"ok": False, "error": "Acción desconocida"}, 400)
+                return
+
+            if not camera_ready:
+                self.send_json({"ok": False, "error": "La cámara no está lista"}, 409)
+                return
+
+            with props_lock:
+                pending_action = name
+
+            self.send_json({"ok": True, "message": f"Acción '{name}' en cola"})
 
             return
 
