@@ -10,6 +10,11 @@ venv/
 .env
 *.local
 
+# Pesos de modelos (grandes, fuera de git)
+apps/camera-yolo/models/*
+!apps/camera-yolo/models/.gitkeep
+*.pt
+
 # SDK del fabricante: archivos comprimidos originales (la fuente pristina vive en disco,
 # el contenido extraído SÍ se versiona bajo vendor/mindvision-sdk/{linux,v4l2})
 vendor/mindvision-sdk/archives/

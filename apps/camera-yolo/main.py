@@ -13,18 +13,32 @@ import numpy as np
 import torch
 from ultralytics import YOLO
 
+import camera_props
+
 
 # ============================================================
 # MVSDK
 # ============================================================
+# El wrapper mvsdk.py carga la biblioteca nativa al importarse
+# (MVCAMSDK_X64.dll en Windows / libMVSDK.so en Linux). Se busca:
+#   1. donde ya esté en el PYTHONPATH (imagen Docker: /opt/camera-yolo)
+#   2. MVSDK_PATH (instalación local en Windows)
+#   3. el wrapper de referencia del monorepo (services/camera-service/legacy)
 
-MVSDK_PATH = (
+MVSDK_PATH = os.getenv(
+    "MVSDK_PATH",
     r"C:\Users\dmore\OneDrive\Backup\SOFTWARE\VISION CHINA"
-    r"\USB SDK\USB Drive\Demo\Demo\Python\python_demo"
+    r"\USB SDK\USB Drive\Demo\Demo\Python\python_demo",
 )
 
-if MVSDK_PATH not in sys.path:
-    sys.path.insert(0, MVSDK_PATH)
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_LEGACY_MVSDK = os.path.normpath(
+    os.path.join(_THIS_DIR, "..", "..", "services", "camera-service", "legacy")
+)
+
+for _p in (MVSDK_PATH, _LEGACY_MVSDK):
+    if _p and os.path.isdir(_p) and _p not in sys.path:
+        sys.path.append(_p)
 
 import mvsdk
 
@@ -79,11 +93,23 @@ def camera_get_frame_rate(h_camera):
 # ============================================================
 
 HOST = "0.0.0.0"
-PORT = 8090
+PORT = int(os.getenv("PORT", "8090"))
 
-MODEL_PATH = r"C:\Python\YOLO\yolo26x.pt"
+MODEL_PATH = os.getenv("MODEL_PATH", r"C:\Python\YOLO\yolo26x.pt")
 
-DEVICE = "cuda:0"
+DEVICE = os.getenv("YOLO_DEVICE", "cuda:0")
+
+# Solo informativo / para logs: la app abre devices[0]. El servicio
+# de configuración lo guarda en camera_config.json.
+CAMERA_IP = os.getenv("CAMERA_IP", "192.168.0.216")
+
+# camera_config.json = fuente de verdad de las propiedades de la cámara.
+# Nativo: apps/camera-yolo/config/camera_config.json (versionado como semilla).
+# Docker: /config/camera_config.json (volumen ./config).
+CAMERA_CONFIG_PATH = os.getenv(
+    "CAMERA_CONFIG_PATH",
+    os.path.join(_THIS_DIR, "config", "camera_config.json"),
+)
 
 # Cámara
 WIDTH = 1280
@@ -158,6 +184,34 @@ mirror_horizontal = False
 # Estimar la posición del cuadro en los frames donde no hubo
 # inferencia nueva, en vez de dejarlo clavado en la última posición.
 predict_motion = True
+
+
+# ============================================================
+# PROPIEDADES DE CÁMARA (panel de configuración)
+# ============================================================
+# camera_config.json es la fuente de verdad. camera_loop() aplica
+# `desired_properties` a la cámara (único hilo que toca el SDK) y
+# vuelve a persistir el archivo con los valores efectivos.
+
+camera_handle = 0
+
+# {id: valor objetivo}. Lo puebla config_load() al arrancar y
+# /control/apply cuando el usuario edita en el panel.
+desired_properties = {}
+
+# camera_loop() atiende el lote pendiente cuando esto es True.
+properties_dirty = False
+
+# POST /control/save_config: camera_loop() relee la cámara y guarda.
+save_requested = False
+
+# {id: {"set_ok", "verified", "message"}} — último resultado por propiedad.
+properties_status = {}
+
+# Texto del último guardado a disco (para mostrar en el panel).
+properties_last_save = ""
+
+props_lock = threading.Lock()
 
 
 # ============================================================
@@ -359,6 +413,227 @@ def set_exposure(value):
         exposure_us = value
 
     return value
+
+
+# ============================================================
+# PROPIEDADES DE CÁMARA — helpers
+# ============================================================
+
+def _native_fr_get():
+    """Adaptador para camera_props: frecuencia de adquisición nativa."""
+    try:
+        return True, camera_get_frame_rate(camera_handle)
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+
+def _native_fr_set(value):
+    try:
+        rc = camera_set_frame_rate(camera_handle, int(float(value)))
+        return rc in (None, 0), f"CameraSetFrameRate -> {rc}"
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+
+def queue_properties(changes):
+    """Mezcla cambios pedidos por el panel en `desired_properties`."""
+    global properties_dirty
+
+    valid = camera_props.definitions_by_id()
+    accepted = []
+
+    with props_lock:
+        for pid, value in changes.items():
+            if pid not in valid:
+                continue
+            desired_properties[pid] = value
+            accepted.append(pid)
+
+        if accepted:
+            properties_dirty = True
+
+    # La exposición tiene su propio control (slider) y su propia
+    # ruta de aplicación en camera_loop(): mantenemos una sola fuente.
+    if "exposure_us" in changes:
+        try:
+            set_exposure(int(float(changes["exposure_us"])))
+        except (TypeError, ValueError):
+            pass
+
+    return accepted
+
+
+def props_snapshot():
+    """Estado para GET /api/props (no toca la cámara)."""
+    with props_lock:
+        return {
+            "definitions": camera_props.property_definitions(),
+            "values": dict(desired_properties),
+            "status": dict(properties_status),
+            "camera_ip": CAMERA_IP,
+            "config_path": CAMERA_CONFIG_PATH,
+            "last_save": properties_last_save,
+            "dirty": properties_dirty,
+        }
+
+
+def _save_config_now(h_camera):
+    """camera_loop() -> relee la cámara y persiste camera_config.json."""
+    global properties_last_save
+
+    with props_lock:
+        overrides = dict(desired_properties)
+
+    save_ok, save_result = camera_props.config_save(
+        CAMERA_CONFIG_PATH, CAMERA_IP, mvsdk, h_camera,
+        native_get=_native_fr_get, overrides=overrides,
+    )
+    with props_lock:
+        properties_last_save = (
+            f"{time.strftime('%H:%M:%S')} — "
+            + ("guardado OK" if save_ok else "guardado con avisos")
+        )
+    print(f"[PROPS] Guardado manual ok={save_ok} en {save_result.get('path')}")
+
+
+def _apply_pending_properties(h_camera):
+    """
+    Lo llama camera_loop() (único hilo con acceso al SDK) cuando hay un
+    lote pendiente. Escribe a la cámara y re-persiste camera_config.json.
+    """
+    global properties_dirty, properties_status, properties_last_save, save_requested
+
+    with props_lock:
+        if save_requested and not properties_dirty:
+            save_requested = False
+            do_save_only = True
+        else:
+            do_save_only = False
+
+    if do_save_only:
+        _save_config_now(h_camera)
+        return
+
+    with props_lock:
+        if not properties_dirty:
+            return
+        changes = dict(desired_properties)
+        properties_dirty = False
+        save_requested = False
+
+    all_ok, status = camera_props.apply_batch(
+        mvsdk,
+        h_camera,
+        changes,
+        native_get=_native_fr_get,
+        native_set=_native_fr_set,
+    )
+
+    with props_lock:
+        overrides = dict(desired_properties)
+
+    save_ok, save_result = camera_props.config_save(
+        CAMERA_CONFIG_PATH,
+        CAMERA_IP,
+        mvsdk,
+        h_camera,
+        native_get=_native_fr_get,
+        overrides=overrides,
+    )
+
+    stamp = time.strftime("%H:%M:%S")
+    with props_lock:
+        properties_status = status
+        properties_last_save = (
+            f"{stamp} — guardado OK" if save_ok
+            else f"{stamp} — guardado con avisos"
+        )
+
+    print(
+        f"[PROPS] Lote aplicado ({len(changes)} props, ok={all_ok}); "
+        f"config guardada ok={save_ok} en {save_result.get('path')}"
+    )
+
+
+def _bootstrap_properties(h_camera):
+    """
+    Al arrancar: si existe camera_config.json lo aplica a la cámara
+    (fuente de verdad). Si no existe, crea la semilla desde la cámara.
+    """
+    global properties_dirty, properties_status, properties_last_save
+
+    saved = camera_props.config_load(CAMERA_CONFIG_PATH)
+
+    if saved:
+        with props_lock:
+            desired_properties.clear()
+            desired_properties.update(saved)
+
+        if "exposure_us" in saved:
+            try:
+                set_exposure(int(float(saved["exposure_us"])))
+            except (TypeError, ValueError):
+                pass
+
+        all_ok, status = camera_props.apply_batch(
+            mvsdk,
+            h_camera,
+            saved,
+            native_get=_native_fr_get,
+            native_set=_native_fr_set,
+        )
+        with props_lock:
+            properties_status = status
+        print(
+            f"[PROPS] camera_config.json aplicado al arranque "
+            f"({len(saved)} props, ok={all_ok})"
+        )
+    else:
+        with props_lock:
+            snap = camera_props.read_all(
+                mvsdk, h_camera, native_get=_native_fr_get
+            )
+            desired_properties.clear()
+            for pid, entry in snap.items():
+                if entry.get("ok"):
+                    desired_properties[pid] = entry.get("value")
+
+    with props_lock:
+        overrides = dict(desired_properties)
+
+    save_ok, save_result = camera_props.config_save(
+        CAMERA_CONFIG_PATH,
+        CAMERA_IP,
+        mvsdk,
+        h_camera,
+        native_get=_native_fr_get,
+        overrides=overrides,
+    )
+    with props_lock:
+        properties_last_save = (
+            f"{time.strftime('%H:%M:%S')} — "
+            + ("guardado OK" if save_ok else "guardado con avisos")
+        )
+    print(
+        f"[PROPS] Semilla/estado guardado en {save_result.get('path')} "
+        f"(ok={save_ok})"
+    )
+
+
+def reload_properties_from_file():
+    """POST /control/reload_config — vuelve a leer el archivo y lo encola."""
+    global properties_dirty
+
+    saved = camera_props.config_load(CAMERA_CONFIG_PATH)
+    if saved is None:
+        return False, "No hay archivo de configuración que recargar"
+
+    with props_lock:
+        desired_properties.clear()
+        desired_properties.update(saved)
+        properties_dirty = True
+
+    return True, f"{len(saved)} propiedades recargadas del archivo"
 
 
 # ============================================================
@@ -866,6 +1141,7 @@ def camera_loop():
 
     global running
     global camera_ready
+    global camera_handle
 
     global latest_frame
     global latest_capture_time
@@ -1268,6 +1544,25 @@ def camera_loop():
                 "el buffer."
             )
 
+        # ----------------------------------------------------
+        # PROPIEDADES: camera_config.json es la fuente de verdad
+        # ----------------------------------------------------
+
+        camera_handle = h_camera
+
+        try:
+
+            _bootstrap_properties(
+                h_camera
+            )
+
+        except Exception as e:
+
+            print(
+                "No se pudo aplicar camera_config.json:",
+                repr(e)
+            )
+
         camera_ready = True
 
         print()
@@ -1282,6 +1577,14 @@ def camera_loop():
         while running:
 
             try:
+
+                # --------------------------------------------
+                # PROPIEDADES PENDIENTES DEL PANEL
+                # --------------------------------------------
+
+                _apply_pending_properties(
+                    h_camera
+                )
 
                 # --------------------------------------------
                 # CAMBIO EXPOSICIÓN
@@ -1517,6 +1820,7 @@ def camera_loop():
     finally:
 
         camera_ready = False
+        camera_handle = 0
 
         if h_camera:
 
@@ -1576,10 +1880,11 @@ def yolo_loop():
 
         print("Modelo:", model.task)
         print("Device:", DEVICE)
-        print(
-            "GPU:",
-            torch.cuda.get_device_name(0)
-        )
+        if torch.cuda.is_available():
+            print(
+                "GPU:",
+                torch.cuda.get_device_name(0)
+            )
 
         model_ready = True
 
@@ -1638,7 +1943,8 @@ def yolo_loop():
                 verbose=False
             )
 
-            torch.cuda.synchronize()
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
 
         print("YOLO listo.")
 
@@ -2345,6 +2651,145 @@ button {
 
 }
 
+
+/* ==========================================================
+   PANEL DE CONFIGURACIÓN DE CÁMARA
+   ========================================================== */
+
+.cam-config {
+
+    max-width: 1250px;
+
+    margin: 10px auto;
+
+    background: #242424;
+
+    border-radius: 10px;
+
+    padding: 0 15px;
+
+    text-align: left;
+}
+
+.cam-config > summary {
+
+    cursor: pointer;
+
+    padding: 14px 0;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+    list-style: none;
+}
+
+.cam-config > summary::-webkit-details-marker {
+
+    display: none;
+}
+
+.cam-config > summary::before {
+
+    content: "\25B8  ";
+
+    color: #888;
+}
+
+.cam-config[open] > summary::before {
+
+    content: "\25BE  ";
+}
+
+.cam-config-body {
+
+    padding-bottom: 15px;
+}
+
+.cam-config .section {
+
+    color: #7fd7ff;
+
+    font-size: 12px;
+
+    margin: 14px 0 6px;
+}
+
+.cam-prop {
+
+    display: grid;
+
+    grid-template-columns: 1fr 150px auto;
+
+    gap: 10px;
+
+    align-items: center;
+
+    padding: 6px 0;
+
+    border-bottom: 1px solid #202020;
+
+    font-size: 13px;
+}
+
+.cam-prop small {
+
+    color: #888;
+
+    margin-left: 6px;
+}
+
+.cam-prop input,
+.cam-prop select {
+
+    width: 100%;
+
+    padding: 5px;
+
+    background: #181818;
+
+    color: white;
+
+    border: 1px solid #333;
+
+    border-radius: 4px;
+}
+
+.cam-prop .cam-apply {
+
+    padding: 5px 10px;
+
+    font-size: 12px;
+
+    cursor: pointer;
+}
+
+.cam-prop .cam-msg {
+
+    grid-column: 1 / -1;
+
+    font-size: 11px;
+
+    color: #888;
+
+    min-height: 0;
+}
+
+.cam-prop .cam-msg.ok {
+
+    color: #6bd06b;
+}
+
+.cam-prop .cam-msg.err {
+
+    color: #e06b6b;
+}
+
+.cam-config .buttons {
+
+    margin-top: 14px;
+}
+
 </style>
 
 </head>
@@ -2667,6 +3112,48 @@ DEMA - GE134GM + YOLO26-X
 
 
 </div>
+
+
+<!-- ========================================================
+     CONFIGURACIÓN DE CÁMARA (camera_config.json)
+     ======================================================== -->
+
+<details class="cam-config" id="camConfig">
+
+    <summary>
+        Configuración de cámara
+    </summary>
+
+    <div class="cam-config-body">
+
+        <p style="color:#888;font-size:12px;margin:4px 0">
+            Estos ajustes se guardan en el archivo de configuración y
+            se vuelven a aplicar cada vez que arranca el servicio.
+        </p>
+
+        <div id="camProps">
+            Cargando…
+        </div>
+
+        <div class="buttons">
+
+            <button onclick="saveCameraConfig()">
+                Guardar configuración
+            </button>
+
+            <button onclick="reloadCameraConfig()">
+                Recargar desde archivo
+            </button>
+
+        </div>
+
+        <div class="status" id="camConfigStatus">
+            —
+        </div>
+
+    </div>
+
+</details>
 
 
 <!-- ========================================================
@@ -3752,6 +4239,233 @@ async function nextFrame() {
 
 
 // ==========================================================
+// CONFIGURACIÓN DE CÁMARA
+// ==========================================================
+
+const camConfig = document.getElementById("camConfig");
+const camProps = document.getElementById("camProps");
+const camConfigStatus = document.getElementById("camConfigStatus");
+
+let camPropsLoaded = false;
+
+
+function camSetStatus(text, cls) {
+
+    camConfigStatus.className = "status " + (cls || "");
+    camConfigStatus.innerText = text;
+}
+
+
+function camControlHtml(def, value) {
+
+    const pid = def.id;
+    const v = value === null || value === undefined ? "" : value;
+
+    if (def.type === "bool" || def.type === "bool_index") {
+
+        const on = String(v) === "1" || v === 1 || v === true;
+
+        return '<select data-prop="' + pid + '">'
+            + '<option value="0"' + (on ? "" : " selected") + '>OFF</option>'
+            + '<option value="1"' + (on ? " selected" : "") + '>ON</option>'
+            + '</select>';
+    }
+
+    if (def.type === "enum" && def.options) {
+
+        let opts = "";
+
+        def.options.forEach(function (o) {
+
+            const sel = String(o.value) === String(v) ? " selected" : "";
+            opts += '<option value="' + o.value + '"' + sel + '>'
+                + o.label + '</option>';
+        });
+
+        return '<select data-prop="' + pid + '">' + opts + '</select>';
+    }
+
+    const step = def.type === "float" ? "any" : "1";
+
+    return '<input data-prop="' + pid + '" type="number" step="' + step
+        + '" value="' + v + '">';
+}
+
+
+function renderCamProps(data) {
+
+    const defs = data.definitions || [];
+    const values = data.values || {};
+    const status = data.status || {};
+
+    const bySection = {};
+
+    defs.forEach(function (def) {
+
+        (bySection[def.section] = bySection[def.section] || []).push(def);
+    });
+
+    let html = "";
+
+    Object.keys(bySection).forEach(function (section) {
+
+        html += '<div class="section">' + section + '</div>';
+
+        bySection[section].forEach(function (def) {
+
+            const st = status[def.id];
+            let msg = "";
+            let msgCls = "";
+
+            if (st) {
+
+                if (st.set_ok) {
+                    msg = "Aplicado (cámara: " + st.verified + ")";
+                    msgCls = "ok";
+                } else {
+                    msg = st.message || "No se pudo aplicar";
+                    msgCls = "err";
+                }
+            }
+
+            html += '<div class="cam-prop" data-row="' + def.id + '">'
+                + '<div><b>' + def.label + '</b><small>'
+                + (def.unit || "") + '</small></div>'
+                + '<div>' + camControlHtml(def, values[def.id]) + '</div>'
+                + '<button class="cam-apply" '
+                + 'onclick="applyCamProp(\'' + def.id + '\')">Aplicar</button>'
+                + '<div class="cam-msg ' + msgCls + '">' + msg + '</div>'
+                + '</div>';
+        });
+    });
+
+    camProps.innerHTML = html;
+}
+
+
+function loadCamProps() {
+
+    return fetch("/api/props", { cache: "no-store" })
+
+        .then(function (r) { return r.json(); })
+
+        .then(function (data) {
+
+            renderCamProps(data);
+            camPropsLoaded = true;
+
+            if (data.last_save) {
+                camSetStatus("Último guardado: " + data.last_save);
+            }
+        })
+
+        .catch(function () {
+
+            camProps.innerText = "No se pudo cargar la configuración.";
+        });
+}
+
+
+function applyCamProp(pid) {
+
+    const row = camProps.querySelector('[data-row="' + pid + '"]');
+
+    if (!row) {
+        return;
+    }
+
+    const field = row.querySelector("[data-prop]");
+    const body = {};
+    body[pid] = field.value;
+
+    camSetStatus("Aplicando " + pid + "…");
+
+    fetch("/control/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ properties: body })
+    })
+
+        .then(function (r) { return r.json(); })
+
+        .then(function (data) {
+
+            if (!data.ok) {
+                camSetStatus("Error: " + (data.error || data.message), "err");
+                return;
+            }
+
+            camSetStatus(data.message);
+            // Dar tiempo a camera_loop() a aplicar y guardar.
+            setTimeout(loadCamProps, 900);
+        })
+
+        .catch(function () {
+
+            camSetStatus("Error de comunicación", "err");
+        });
+}
+
+
+function saveCameraConfig() {
+
+    camSetStatus("Guardando…");
+
+    fetch("/control/save_config", { cache: "no-store" })
+
+        .then(function (r) { return r.json(); })
+
+        .then(function (data) {
+
+            camSetStatus(
+                data.ok ? "Guardado solicitado" : ("Error: " + data.error),
+                data.ok ? "ok" : "err"
+            );
+
+            setTimeout(loadCamProps, 900);
+        })
+
+        .catch(function () {
+
+            camSetStatus("Error de comunicación", "err");
+        });
+}
+
+
+function reloadCameraConfig() {
+
+    camSetStatus("Recargando desde archivo…");
+
+    fetch("/control/reload_config", { cache: "no-store" })
+
+        .then(function (r) { return r.json(); })
+
+        .then(function (data) {
+
+            camSetStatus(
+                data.message,
+                data.ok ? "ok" : "err"
+            );
+
+            setTimeout(loadCamProps, 900);
+        })
+
+        .catch(function () {
+
+            camSetStatus("Error de comunicación", "err");
+        });
+}
+
+
+camConfig.addEventListener("toggle", function () {
+
+    if (camConfig.open && !camPropsLoaded) {
+        loadCamProps();
+    }
+});
+
+
+// ==========================================================
 // START
 // ==========================================================
 
@@ -4547,8 +5261,167 @@ class CameraHandler(
 
 
         # ====================================================
+        # PROPIEDADES DE CÁMARA — estado del panel
+        # ====================================================
+
+        if path == "/api/props":
+
+            self.send_json(
+                props_snapshot()
+            )
+
+            return
+
+
+        # ====================================================
+        # PROPIEDADES — recargar desde camera_config.json
+        # ====================================================
+
+        if path == "/control/reload_config":
+
+            ok, message = reload_properties_from_file()
+
+            self.send_json(
+                {
+                    "ok": ok,
+                    "message": message
+                },
+                200 if ok else 400
+            )
+
+            return
+
+
+        # ====================================================
+        # PROPIEDADES — guardar camera_config.json ahora
+        # ====================================================
+
+        if path == "/control/save_config":
+
+            global save_requested
+
+            if not camera_ready:
+
+                self.send_json(
+                    {
+                        "ok": False,
+                        "error": "La cámara no está lista"
+                    },
+                    409
+                )
+
+                return
+
+            with props_lock:
+                save_requested = True
+
+            self.send_json({
+                "ok": True,
+                "message": "Guardado solicitado"
+            })
+
+            return
+
+
+        # ====================================================
         # 404
         # ====================================================
+
+        self.send_response(
+            404
+        )
+
+        self.end_headers()
+
+
+    # --------------------------------------------------------
+    # POST
+    # --------------------------------------------------------
+
+    def do_POST(self):
+
+        path = urlparse(
+            self.path
+        ).path
+
+        # ====================================================
+        # PROPIEDADES — aplicar cambios del panel
+        # ====================================================
+
+        if path == "/control/apply":
+
+            try:
+
+                length = int(
+                    self.headers.get(
+                        "Content-Length",
+                        "0"
+                    )
+                )
+
+                body = (
+                    self.rfile.read(length)
+                    if length else b"{}"
+                )
+
+                payload = json.loads(
+                    body.decode("utf-8")
+                )
+
+            except Exception as exc:
+
+                self.send_json(
+                    {
+                        "ok": False,
+                        "error": f"JSON inválido: {exc}"
+                    },
+                    400
+                )
+
+                return
+
+            changes = payload.get(
+                "properties",
+                payload
+            )
+
+            if not isinstance(changes, dict) or not changes:
+
+                self.send_json(
+                    {
+                        "ok": False,
+                        "error": "Faltan propiedades que aplicar"
+                    },
+                    400
+                )
+
+                return
+
+            if not camera_ready:
+
+                self.send_json(
+                    {
+                        "ok": False,
+                        "error": "La cámara no está lista"
+                    },
+                    409
+                )
+
+                return
+
+            accepted = queue_properties(changes)
+
+            self.send_json({
+                "ok": bool(accepted),
+                "accepted": accepted,
+                "message": (
+                    f"{len(accepted)} propiedad(es) en cola"
+                    if accepted else "Ninguna propiedad válida"
+                )
+            })
+
+            return
+
 
         self.send_response(
             404

@@ -30,6 +30,11 @@ Estructura de monorepo, cámara aislada en `services/camera-service/`, SDK vendo
 
 ## Fase 4 — `services/camera-service` refactor
 
+> **Nota (2026-08-28):** el panel de propiedades + `camera_config.json` como fuente de verdad
+> ya se integró en `apps/camera-yolo` (contenedor de inferencia), con `Dockerfile` multi-arch
+> sobre la base Ultralytics (GPU / CPU / Raspberry Pi 5). El módulo `apps/camera-yolo/camera_props.py`
+> es candidato a compartirse con este refactor. Esto NO sustituye la Fase 4 (HAL + FakeBackend + API).
+
 - HAL `CameraBackend`: `MvsdkBackend` (real) + `FakeBackend` (frames sintéticos, para CI/dev).
 - Core sin framework: adquisición, gestor de propiedades (basado en el `property_definitions()`
   actual), config declarativa `camera.yaml` idempotente, supervisor de reconexión.

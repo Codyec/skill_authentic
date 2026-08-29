@@ -1,0 +1,18 @@
+# Contexto de build = raíz del repo. Solo se necesita camera-yolo, el
+# wrapper mvsdk y las libs/headers Linux del SDK.
+# (BuildKit lee este archivo junto al Dockerfile.)
+
+*
+
+!apps/camera-yolo
+!services/camera-service/legacy/mvsdk.py
+!vendor/mindvision-sdk/linux/include
+!vendor/mindvision-sdk/linux/lib
+
+# Basura dentro de lo re-incluido
+apps/camera-yolo/__pycache__
+apps/camera-yolo/models
+apps/camera-yolo/**/*.pyc
+vendor/mindvision-sdk/linux/lib/x86
+vendor/mindvision-sdk/linux/lib/arm
+vendor/mindvision-sdk/linux/lib/arm_softfp

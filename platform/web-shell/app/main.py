@@ -235,6 +235,24 @@ MAIN_MENU = [
     },
 ]
 
+# Servicios externos que el proyecto quiera enlazar desde el menú.
+# Se añaden solo si su URL está configurada por entorno, así el código
+# base sigue siendo genérico (sin literales de proyecto).
+#   CAMERA_URL -> UI del servicio de cámara/visión (app camera-yolo)
+_CAMERA_URL = os.getenv("CAMERA_URL", "").strip()
+if _CAMERA_URL:
+    MAIN_MENU.append(
+        {
+            "id": "vision",
+            "title": "Visión",
+            "description": "Configuración de la cámara y base para los procesos de visión.",
+            "href": _CAMERA_URL,
+            "enabled": True,
+            "external": True,
+            "roles": ["operador"],
+        }
+    )
+
 
 def visible_menu(request):
     """Filtra el menú según los permisos del usuario en sesión."""

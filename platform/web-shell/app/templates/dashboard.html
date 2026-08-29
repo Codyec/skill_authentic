@@ -43,11 +43,11 @@
 
         <section class="menu-grid">
             {% for item in menu %}
-            <a class="menu-card{% if not item.enabled %} is-disabled{% endif %}" href="{{ item.href }}">
+            <a class="menu-card{% if not item.enabled %} is-disabled{% endif %}" href="{{ item.href }}"{% if item.external %} target="_blank" rel="noopener"{% endif %}>
                 <span class="menu-card-tag">{{ item.id }}</span>
                 <h3>{{ item.title }}</h3>
                 <p>{{ item.description }}</p>
-                <span class="menu-card-cta">{{ "Abrir" if item.enabled else "Próximamente" }}</span>
+                <span class="menu-card-cta">{{ ("Abrir ↗" if item.external else "Abrir") if item.enabled else "Próximamente" }}</span>
             </a>
             {% endfor %}
         </section>

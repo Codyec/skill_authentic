@@ -1,0 +1,20 @@
+# Override para GPU NVIDIA (x86 + CUDA).
+#
+#   docker compose -p camera-yolo -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# Necesita el NVIDIA Container Toolkit instalado en el host.
+
+services:
+  camera-yolo:
+    build:
+      args:
+        BASE_IMAGE: ultralytics/ultralytics:latest
+    environment:
+      YOLO_DEVICE: cuda:0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

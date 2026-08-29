@@ -1,0 +1,34 @@
+# camera-yolo — portable (CPU / Raspberry Pi 5).
+#
+#   docker compose -p camera-yolo up -d --build
+#
+# Para GPU NVIDIA, añade el override:
+#   docker compose -p camera-yolo -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# Requisitos:
+#   - Cámara MindVision GigE alcanzable desde el host (network_mode: host).
+#   - Pesos YOLO en ./models/yolo26x.pt
+#   - Config de cámara en ./config/camera_config.json (fuente de verdad).
+
+services:
+  camera-yolo:
+    build:
+      context: ../..
+      dockerfile: apps/camera-yolo/Dockerfile
+      args:
+        # CPU: latest-cpu · Raspberry Pi 5: latest-arm64
+        BASE_IMAGE: ${BASE_IMAGE:-ultralytics/ultralytics:latest-cpu}
+    image: camera-yolo:local
+    container_name: camera-yolo
+    # GigE Vision necesita la red del host (descubrimiento + jumbo frames).
+    network_mode: host
+    environment:
+      CAMERA_IP: ${CAMERA_IP:-192.168.0.216}
+      YOLO_DEVICE: ${YOLO_DEVICE:-cpu}
+      MODEL_PATH: /models/yolo26x.pt
+      CAMERA_CONFIG_PATH: /config/camera_config.json
+      PORT: "8090"
+    volumes:
+      - ./config:/config
+      - ./models:/models
+    restart: unless-stopped
