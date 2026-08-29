@@ -207,6 +207,13 @@ properties_dirty = False
 # POST /control/save_config: camera_loop() relee la cámara y guarda.
 save_requested = False
 
+# True cuando se aplicaron cambios a la cámara que aún NO están en
+# camera_config.json (el archivo que es la fuente de verdad).
+unsaved_changes = False
+
+# El próximo lote a aplicar viene del archivo (reload) -> no marca "sin guardar".
+_apply_from_file = False
+
 # {id: {"set_ok", "verified", "message"}} — último resultado por propiedad.
 properties_status = {}
 
@@ -476,12 +483,13 @@ def props_snapshot():
             "config_path": CAMERA_CONFIG_PATH,
             "last_save": properties_last_save,
             "dirty": properties_dirty,
+            "unsaved": unsaved_changes,
         }
 
 
 def _save_config_now(h_camera):
-    """camera_loop() -> relee la cámara y persiste camera_config.json."""
-    global properties_last_save
+    """camera_loop() -> persiste camera_config.json desde la intención actual."""
+    global properties_last_save, unsaved_changes
 
     with props_lock:
         overrides = dict(desired_properties)
@@ -495,6 +503,8 @@ def _save_config_now(h_camera):
             f"{time.strftime('%H:%M:%S')} — "
             + ("guardado OK" if save_ok else "guardado con avisos")
         )
+        if save_ok:
+            unsaved_changes = False
     print(f"[PROPS] Guardado manual ok={save_ok} en {save_result.get('path')}")
 
 
@@ -503,7 +513,8 @@ def _apply_pending_properties(h_camera):
     Lo llama camera_loop() (único hilo con acceso al SDK) cuando hay un
     lote pendiente. Escribe a la cámara y re-persiste camera_config.json.
     """
-    global properties_dirty, properties_status, properties_last_save, save_requested
+    global properties_dirty, properties_status, save_requested
+    global unsaved_changes, _apply_from_file
 
     with props_lock:
         if save_requested and not properties_dirty:
@@ -522,6 +533,8 @@ def _apply_pending_properties(h_camera):
         changes = dict(desired_properties)
         properties_dirty = False
         save_requested = False
+        from_file = _apply_from_file
+        _apply_from_file = False
 
     all_ok, status = camera_props.apply_batch(
         mvsdk,
@@ -532,28 +545,20 @@ def _apply_pending_properties(h_camera):
     )
 
     with props_lock:
-        overrides = dict(desired_properties)
-
-    save_ok, save_result = camera_props.config_save(
-        CAMERA_CONFIG_PATH,
-        CAMERA_IP,
-        mvsdk,
-        h_camera,
-        native_get=_native_fr_get,
-        overrides=overrides,
-    )
-
-    stamp = time.strftime("%H:%M:%S")
-    with props_lock:
         properties_status = status
-        properties_last_save = (
-            f"{stamp} — guardado OK" if save_ok
-            else f"{stamp} — guardado con avisos"
-        )
+        # Aplicar cambia la cámara EN VIVO (previsualización). El archivo
+        # camera_config.json solo se toca al pulsar "Guardar" — así el
+        # usuario confirma explícitamente la config que servirá para todo.
+        if not from_file:
+            unsaved_changes = True
+
+    if from_file:
+        # Recarga desde archivo: la cámara ya coincide con el archivo.
+        _save_config_now(h_camera)
 
     print(
-        f"[PROPS] Lote aplicado ({len(changes)} props, ok={all_ok}); "
-        f"config guardada ok={save_ok} en {save_result.get('path')}"
+        f"[PROPS] Lote aplicado ({len(changes)} props, ok={all_ok}, "
+        f"desde_archivo={from_file})"
     )
 
 
@@ -562,7 +567,7 @@ def _bootstrap_properties(h_camera):
     Al arrancar: si existe camera_config.json lo aplica a la cámara
     (fuente de verdad). Si no existe, crea la semilla desde la cámara.
     """
-    global properties_dirty, properties_status, properties_last_save
+    global properties_dirty, properties_status, properties_last_save, unsaved_changes
 
     saved = camera_props.config_load(CAMERA_CONFIG_PATH)
 
@@ -616,6 +621,7 @@ def _bootstrap_properties(h_camera):
             f"{time.strftime('%H:%M:%S')} — "
             + ("guardado OK" if save_ok else "guardado con avisos")
         )
+        unsaved_changes = False
     print(
         f"[PROPS] Semilla/estado guardado en {save_result.get('path')} "
         f"(ok={save_ok})"
@@ -624,7 +630,7 @@ def _bootstrap_properties(h_camera):
 
 def reload_properties_from_file():
     """POST /control/reload_config — vuelve a leer el archivo y lo encola."""
-    global properties_dirty
+    global properties_dirty, _apply_from_file
 
     saved = camera_props.config_load(CAMERA_CONFIG_PATH)
     if saved is None:
@@ -634,6 +640,13 @@ def reload_properties_from_file():
         desired_properties.clear()
         desired_properties.update(saved)
         properties_dirty = True
+        _apply_from_file = True
+
+    if "exposure_us" in saved:
+        try:
+            set_exposure(int(float(saved["exposure_us"])))
+        except (TypeError, ValueError):
+            pass
 
     return True, f"{len(saved)} propiedades recargadas del archivo"
 
@@ -2782,6 +2795,106 @@ input:focus, select:focus { outline: none; border-color: var(--brand); }
     .page { padding: 24px 16px 60px; }
 }
 
+/* ---------- LAYOUT 3 COLUMNAS ---------- */
+
+.layout {
+    max-width: 1500px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) 400px;
+    gap: 18px;
+    align-items: start;
+}
+
+.col { min-width: 0; }
+
+.col-left, .col-center { position: sticky; top: 84px; }
+
+.col-center .image-panel { margin: 0; }
+
+.col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.col-right .panel,
+.col-right .controls,
+.col-right .cam-config { margin: 0; max-width: none; }
+
+.col-right::-webkit-scrollbar { width: 8px; }
+.col-right::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+
+.metrics { width: 100%; }
+
+
+/* ---------- BLOQUE GUARDAR ---------- */
+
+.save-block {
+    border-color: rgba(31, 131, 214, 0.45);
+    box-shadow: 0 0 0 1px rgba(31, 131, 214, 0.12) inset;
+}
+
+.save-block h2 { margin: 0 0 6px; font-size: 15px; }
+
+.save-block .lead { margin: 0 0 14px; font-size: 12.5px; }
+
+.save-block .lead .mono {
+    font-family: var(--mono);
+    color: var(--brand-bright);
+    font-size: 0.92em;
+}
+
+.save-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.btn-lg { height: 44px; padding: 0 22px; font-size: 14px; }
+
+.save-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--text-faint);
+}
+
+.save-badge.saved { border-color: rgba(74, 217, 145, 0.5); color: #8be9b6; }
+
+.save-badge.unsaved {
+    border-color: rgba(240, 180, 90, 0.6);
+    color: #f2c88a;
+    background: rgba(240, 180, 90, 0.1);
+}
+
+.save-meta { margin: 12px 0 0; font-size: 11.5px; color: var(--text-faint); font-family: var(--mono); }
+
+.save-actions { margin-top: 12px; }
+
+
+/* ---------- CONFIG SIEMPRE VISIBLE (ya no es <details>) ---------- */
+
+.cam-config { padding: 20px; }
+.cam-config > h2 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+
+#camProps { margin-top: 4px; }
+
+
+@media (max-width: 1240px) {
+    .layout { grid-template-columns: minmax(0, 1fr) 380px; }
+    .col-left { grid-column: 1 / -1; position: static; }
+    .col-left .metrics { max-width: 640px; }
+}
+
+@media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .col-left, .col-center, .col-right { position: static; grid-column: auto; }
+    .col-right { max-height: none; overflow: visible; }
+}
+
 </style>
 
 </head>
@@ -2809,10 +2922,363 @@ input:focus, select:focus { outline: none; border-color: var(--brand); }
     <p class="lead">Vídeo en vivo, parámetros de inferencia y configuración de la cámara.</p>
 </div>
 
+<div class="layout">
 
-<!-- ========================================================
-     CONTROLES
-     ======================================================== -->
+  <aside class="col col-left">
+    <div class="metrics">
+
+
+
+        <div class="metrics-title">
+            Estado de cámara
+        </div>
+
+
+        <div class="section">
+            CÁMARA
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                FPS
+            </span>
+
+            <span
+                class="metric-value"
+                id="cameraFps"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Captura
+            </span>
+
+            <span
+                class="metric-value"
+                id="captureMs"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Backlog cámara
+            </span>
+
+            <span
+                class="metric-value"
+                id="drainFps"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Resolución
+            </span>
+
+            <span
+                class="metric-value"
+                id="resolution"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Exposición
+            </span>
+
+            <span
+                class="metric-value"
+                id="exposure"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="section">
+            YOLO
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Modelo
+            </span>
+
+            <span
+                class="metric-value"
+            >
+                YOLO26-X
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                FPS
+            </span>
+
+            <span
+                class="metric-value"
+                id="yoloFps"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Latencia
+            </span>
+
+            <span
+                class="metric-value"
+                id="yoloMs"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Detecciones
+            </span>
+
+            <span
+                class="metric-value"
+                id="detections"
+            >
+                0
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Input
+            </span>
+
+            <span
+                class="metric-value"
+                id="inputSize"
+            >
+                640
+            </span>
+
+        </div>
+
+
+        <div class="section">
+            GPU NVIDIA
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                GPU
+            </span>
+
+            <span
+                class="metric-value"
+                id="gpuName"
+            >
+                RTX
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                GPU uso
+            </span>
+
+            <span
+                class="metric-value"
+                id="gpuUtil"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                VRAM
+            </span>
+
+            <span
+                class="metric-value"
+                id="gpuMemory"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="section">
+            SISTEMA
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                CPU
+            </span>
+
+            <span
+                class="metric-value"
+                id="cpu"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                RAM
+            </span>
+
+            <span
+                class="metric-value"
+                id="ram"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Frames
+            </span>
+
+            <span
+                class="metric-value"
+                id="frames"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Edad frame
+            </span>
+
+            <span
+                class="metric-value"
+                id="frameAge"
+            >
+                --
+            </span>
+
+        </div>
+
+
+        <div class="metric">
+
+            <span class="metric-label">
+                Edad detección
+            </span>
+
+            <span
+                class="metric-value"
+                id="detectionAge"
+            >
+                --
+            </span>
+
+        </div>
+    </div>
+  </aside>
+
+  <section class="col col-center">
+<div class="image-panel">
+
+        <img
+            id="video"
+            alt="GE134GM"
+        >
+
+    </div>
+    <div class="status" id="status">
+      Iniciando...
+    </div>
+  </section>
+
+  <aside class="col col-right">
+
+    <section class="panel save-block" id="saveBlock">
+      <h2>Configuración de la cámara</h2>
+      <p class="lead">Se guarda en <span class="mono">camera_config.json</span> — el archivo que el
+      servicio aplica a la cámara en cada arranque y que usarán todos los procesos de visión.
+      Al "Aplicar" una propiedad cambia la cámara en vivo (previsualización); pulsa
+      <b>Guardar configuración</b> para dejarla fija en el archivo.</p>
+      <div class="save-row">
+        <button class="btn btn-primary btn-lg" onclick="saveCameraConfig()">Guardar configuración</button>
+        <span class="save-badge" id="saveBadge">—</span>
+      </div>
+      <p class="save-meta" id="saveMeta">—</p>
+      <div class="save-actions">
+        <button class="btn btn-sm" onclick="reloadCameraConfig()">Descartar cambios y recargar del archivo</button>
+      </div>
+      <div class="status" id="camConfigStatus">—</div>
+    </section>
+
+    <section class="panel cam-config" id="camConfig">
+      <h2>Propiedades de la cámara</h2>
+      <div id="camProps">Cargando…</div>
+    </section>
 
 <div class="controls">
 
@@ -3126,389 +3592,10 @@ input:focus, select:focus { outline: none; border-color: var(--brand); }
      CONFIGURACIÓN DE CÁMARA (camera_config.json)
      ======================================================== -->
 
-<details class="cam-config" id="camConfig">
 
-    <summary>
-        Configuración de cámara
-    </summary>
-
-    <div class="cam-config-body">
-
-        <p style="color:#888;font-size:12px;margin:4px 0">
-            Estos ajustes se guardan en el archivo de configuración y
-            se vuelven a aplicar cada vez que arranca el servicio.
-        </p>
-
-        <div id="camProps">
-            Cargando…
-        </div>
-
-        <div class="buttons">
-
-            <button class="btn btn-primary" onclick="saveCameraConfig()">
-                Guardar configuración
-            </button>
-
-            <button class="btn" onclick="reloadCameraConfig()">
-                Recargar desde archivo
-            </button>
-
-            <a class="btn" href="__MENU_URL__">
-                Volver al menú
-            </a>
-
-        </div>
-
-        <div class="status" id="camConfigStatus">
-            —
-        </div>
-
-    </div>
-
-</details>
-
-
-<!-- ========================================================
-     VISOR
-     ======================================================== -->
-
-<div class="viewer">
-
-
-    <div class="image-panel">
-
-        <img
-            id="video"
-            alt="GE134GM"
-        >
-
-    </div>
-
-
-    <div class="metrics">
-
-
-        <div class="metrics-title">
-            Estado de cámara
-        </div>
-
-
-        <div class="section">
-            CÁMARA
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                FPS
-            </span>
-
-            <span
-                class="metric-value"
-                id="cameraFps"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Captura
-            </span>
-
-            <span
-                class="metric-value"
-                id="captureMs"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Backlog cámara
-            </span>
-
-            <span
-                class="metric-value"
-                id="drainFps"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Resolución
-            </span>
-
-            <span
-                class="metric-value"
-                id="resolution"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Exposición
-            </span>
-
-            <span
-                class="metric-value"
-                id="exposure"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="section">
-            YOLO
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Modelo
-            </span>
-
-            <span
-                class="metric-value"
-            >
-                YOLO26-X
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                FPS
-            </span>
-
-            <span
-                class="metric-value"
-                id="yoloFps"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Latencia
-            </span>
-
-            <span
-                class="metric-value"
-                id="yoloMs"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Detecciones
-            </span>
-
-            <span
-                class="metric-value"
-                id="detections"
-            >
-                0
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Input
-            </span>
-
-            <span
-                class="metric-value"
-                id="inputSize"
-            >
-                640
-            </span>
-
-        </div>
-
-
-        <div class="section">
-            GPU NVIDIA
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                GPU
-            </span>
-
-            <span
-                class="metric-value"
-                id="gpuName"
-            >
-                RTX
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                GPU uso
-            </span>
-
-            <span
-                class="metric-value"
-                id="gpuUtil"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                VRAM
-            </span>
-
-            <span
-                class="metric-value"
-                id="gpuMemory"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="section">
-            SISTEMA
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                CPU
-            </span>
-
-            <span
-                class="metric-value"
-                id="cpu"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                RAM
-            </span>
-
-            <span
-                class="metric-value"
-                id="ram"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Frames
-            </span>
-
-            <span
-                class="metric-value"
-                id="frames"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Edad frame
-            </span>
-
-            <span
-                class="metric-value"
-                id="frameAge"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="metric">
-
-            <span class="metric-label">
-                Edad detección
-            </span>
-
-            <span
-                class="metric-value"
-                id="detectionAge"
-            >
-                --
-            </span>
-
-        </div>
-
-
-        <div class="status" id="status">
-            Iniciando...
-        </div>
-
-
-    </div>
+  </aside>
 
 </div>
-
 
 </main>
 
@@ -4272,11 +4359,29 @@ async function nextFrame() {
 // CONFIGURACIÓN DE CÁMARA
 // ==========================================================
 
-const camConfig = document.getElementById("camConfig");
 const camProps = document.getElementById("camProps");
 const camConfigStatus = document.getElementById("camConfigStatus");
 
 let camPropsLoaded = false;
+
+
+function refreshSaveBadge(data) {
+
+    const badge = document.getElementById("saveBadge");
+    const meta = document.getElementById("saveMeta");
+    if (!badge) { return; }
+
+    if (data.unsaved) {
+        badge.className = "save-badge unsaved";
+        badge.innerText = "● cambios sin guardar";
+    } else {
+        badge.className = "save-badge saved";
+        badge.innerText = "guardado";
+    }
+    meta.innerText = data.last_save
+        ? ("Último guardado: " + data.last_save)
+        : "Aún no se ha guardado el archivo.";
+}
 
 
 function camSetStatus(text, cls) {
@@ -4383,10 +4488,7 @@ function loadCamProps() {
 
             renderCamProps(data);
             camPropsLoaded = true;
-
-            if (data.last_save) {
-                camSetStatus("Último guardado: " + data.last_save);
-            }
+            refreshSaveBadge(data);
         })
 
         .catch(function () {
@@ -4487,12 +4589,6 @@ function reloadCameraConfig() {
 }
 
 
-camConfig.addEventListener("toggle", function () {
-
-    if (camConfig.open && !camPropsLoaded) {
-        loadCamProps();
-    }
-});
 
 
 // ==========================================================
@@ -4516,6 +4612,8 @@ iouValue.innerText =
 nextFrame();
 
 updateStatus();
+
+loadCamProps();
 
 
 </script>
