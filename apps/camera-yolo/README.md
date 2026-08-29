@@ -47,7 +47,13 @@ Notas de comportamiento de esta cámara (HT-GE134GM):
 | `CAMERA_IP` | `192.168.0.216` | informativo (se guarda en el JSON) |
 | `CAMERA_CONFIG_PATH` | `config/camera_config.json` | fuente de verdad |
 | `MVSDK_PATH` | ruta local Windows | dónde buscar `mvsdk.py` |
+| `WEB_SHELL_URL` | `http://localhost:8000/dashboard` | destino de "Volver al menú" |
 | `PORT` | `8090` | puerto web |
+
+La UI usa el mismo sistema de diseño que el web-shell (tema oscuro, acento
+`#1f83d6`, Inter + JetBrains Mono). Barra superior con estado en vivo y botón
+"Volver al menú"; el panel de configuración tiene "Guardar configuración",
+"Recargar desde archivo" y "Volver al menú".
 
 ## Ejecutar — nativo (Windows, cámara real)
 

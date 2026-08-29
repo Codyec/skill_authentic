@@ -45,6 +45,7 @@ ENV PYTHONPATH=/opt/camera-yolo \
     MODEL_PATH=/models/yolo26x.pt \
     CAMERA_CONFIG_PATH=/config/camera_config.json \
     YOLO_DEVICE=cpu \
+    WEB_SHELL_URL=http://localhost:8000/dashboard \
     MVSDK_PATH=
 
 EXPOSE 8090

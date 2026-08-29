@@ -106,6 +106,8 @@ CAMERA_IP = os.getenv("CAMERA_IP", "192.168.0.216")
 # camera_config.json = fuente de verdad de las propiedades de la cámara.
 # Nativo: apps/camera-yolo/config/camera_config.json (versionado como semilla).
 # Docker: /config/camera_config.json (volumen ./config).
+MENU_URL = os.getenv("WEB_SHELL_URL", "http://localhost:8000/dashboard")
+
 CAMERA_CONFIG_PATH = os.getenv(
     "CAMERA_CONFIG_PATH",
     os.path.join(_THIS_DIR, "config", "camera_config.json"),
@@ -2357,437 +2359,427 @@ HTML = r"""
 >
 
 <title>
-DEMA GE134GM + YOLO26-X
+Visión · DEMACYA
 </title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
 
-* {
-    box-sizing: border-box;
+:root {
+    --bg: #070b13;
+    --bg-elev: #0d1320;
+    --panel-a: rgba(16, 26, 43, 0.72);
+    --panel-b: rgba(10, 16, 27, 0.55);
+    --line: #1b2740;
+    --line-soft: rgba(120, 150, 200, 0.06);
+    --text: #e9eef7;
+    --text-dim: #8896ac;
+    --text-faint: #5b6880;
+    --brand: #1f83d6;
+    --brand-bright: #38a0ee;
+    --ok: #4ad991;
+    --err: #e65c5c;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; min-height: 100%; }
 
 body {
-
-    margin: 0;
-
-    background: #111;
-
-    color: white;
-
-    font-family:
-        Arial,
-        sans-serif;
-
-    text-align: center;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-align: left;
 }
 
-h1 {
-
-    margin: 12px;
-
-    font-size: 22px;
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+        radial-gradient(920px 520px at 50% -12%, rgba(31, 131, 214, 0.16), transparent 70%),
+        linear-gradient(var(--line-soft) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(90deg, var(--line-soft) 1px, transparent 1px) 0 0 / 44px 44px,
+        var(--bg);
 }
 
+a { color: inherit; }
 
-/* ==========================================================
-   CONTROL
-   ========================================================== */
 
-.controls {
+/* ---------- TOPBAR ---------- */
 
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(7, 11, 19, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+}
+
+.topbar-inner {
     max-width: 1250px;
-
-    margin: 10px auto;
-
-    background: #242424;
-
-    border-radius: 10px;
-
-    padding: 15px;
+    margin: 0 auto;
+    height: 66px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
 }
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    text-decoration: none;
+    color: var(--text);
+}
+
+.brand-mark {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.brand span {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+}
+
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+
+.live {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+}
+
+.live .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    box-shadow: none;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.live.on .dot { background: var(--ok); box-shadow: 0 0 8px rgba(74, 217, 145, 0.6); }
+
+
+/* ---------- PÁGINA ---------- */
+
+.page {
+    max-width: 1250px;
+    margin: 0 auto;
+    padding: 34px 24px 80px;
+}
+
+.page-head { margin-bottom: 24px; }
+
+.eyebrow {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--brand-bright);
+}
+
+.page-title {
+    margin: 10px 0 0;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.lead {
+    margin: 8px 0 0;
+    color: var(--text-dim);
+    font-size: 13.5px;
+    line-height: 1.6;
+}
+
+
+/* ---------- BOTONES ---------- */
+
+button, .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    height: 38px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+button:hover, .btn:hover { color: var(--text); border-color: var(--brand); }
+
+.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-bright); border-color: var(--brand-bright); color: #fff; }
+
+.btn-sm { height: 32px; padding: 0 12px; font-size: 12px; }
+
+.btn-chip { height: 30px; padding: 0 10px; font-size: 11px; font-family: var(--mono); letter-spacing: 0.04em; }
+
+
+/* ---------- PANELES ---------- */
+
+.panel {
+    max-width: 1250px;
+    margin: 18px auto 0;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
+}
+
+.panel > h2 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+/* ---------- REJILLA DE CONTROLES ---------- */
 
 .control-grid {
-
     display: grid;
-
-    grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(
-                200px,
-                1fr
-            )
-        );
-
-    gap: 10px;
-
-    text-align: left;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
 }
 
 .control {
-
-    background: #181818;
-
-    padding: 10px;
-
-    border-radius: 6px;
-
-    border: 1px solid #333;
+    background: rgba(7, 13, 24, 0.6);
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
 }
 
 .control-title {
-
-    color: #aaa;
-
-    font-size: 12px;
-
-    margin-bottom: 6px;
+    color: var(--text-faint);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-family: var(--mono);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
 }
 
-.control-value {
-
-    font-weight: bold;
-
-    margin-left: 5px;
-}
+.control-value { color: var(--brand-bright); font-weight: 600; }
 
 input[type=range] {
-
     width: 100%;
-}
-
-input[type=number],
-select {
-
-    width: 100%;
-
-    padding: 6px;
-
-    background: #333;
-
-    color: white;
-
-    border: 1px solid #555;
-
-    border-radius: 4px;
-}
-
-button {
-
-    padding: 7px 12px;
-
-    margin: 3px;
-
+    accent-color: var(--brand);
+    height: auto;
+    padding: 0;
+    background: transparent;
     border: 0;
-
-    border-radius: 5px;
-
-    cursor: pointer;
 }
 
-.buttons {
-
-    text-align: center;
-}
-
-.toggle {
-
+input[type=number], input[type=text], select {
     width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    background: #0a1120;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
 }
 
+input:focus, select:focus { outline: none; border-color: var(--brand); }
 
-/* ==========================================================
-   VISOR
-   ========================================================== */
+.control .buttons { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.control .buttons button { height: 30px; padding: 0 10px; font-size: 11px; }
+
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.toggle { width: 100%; }
+.toggle.on { border-color: rgba(74, 217, 145, 0.5); color: #8be9b6; }
+
+
+/* ---------- VISOR ---------- */
 
 .viewer {
-
     max-width: 1250px;
-
-    margin: 12px auto;
-
+    margin: 18px auto 0;
     display: flex;
-
-    gap: 12px;
-
-    align-items:
-        flex-start;
+    gap: 16px;
+    align-items: flex-start;
 }
 
-
-/* ==========================================================
-   IMAGEN
-   ========================================================== */
-
-.image-panel {
-
-    flex: 1;
-
-    min-width: 0;
-}
+.image-panel { flex: 1; min-width: 0; }
 
 #video {
-
     display: block;
-
     width: 100%;
-
     height: auto;
-
     background: #000;
-
-    border: 2px solid #444;
+    border: 1px solid var(--line);
+    border-radius: 14px;
 }
 
-
-/* ==========================================================
-   INDICADORES
-   ========================================================== */
-
 .metrics {
-
-    width: 285px;
-
+    width: 300px;
     flex-shrink: 0;
-
-    background: #000;
-
-    color: white;
-
-    border: 2px solid #444;
-
-    border-radius: 8px;
-
-    padding: 14px;
-
-    text-align: left;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
+    padding: 18px;
 }
 
 .metrics-title {
-
-    font-size: 19px;
-
-    font-weight: bold;
-
-    border-bottom: 1px solid #444;
-
-    padding-bottom: 9px;
-
-    margin-bottom: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+    margin-bottom: 6px;
 }
 
 .section {
-
-    color: #777;
-
-    font-size: 11px;
-
-    margin-top: 10px;
-
-    margin-bottom: 3px;
-
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    margin-top: 14px;
+    margin-bottom: 4px;
     text-transform: uppercase;
 }
 
 .metric {
-
     display: flex;
-
-    justify-content:
-        space-between;
-
+    justify-content: space-between;
     gap: 8px;
-
-    padding: 6px 0;
-
-    border-bottom:
-        1px solid #202020;
-
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line-soft);
     font-size: 13px;
 }
 
-.metric-label {
-
-    color: #aaa;
-}
-
-.metric-value {
-
-    color: white;
-
-    font-weight: bold;
-
-    text-align: right;
-}
+.metric-label { color: var(--text-dim); }
+.metric-value { color: var(--text); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 
 .status {
-
-    margin-top: 10px;
-
-    padding: 9px;
-
-    background: #161616;
-
-    border-radius: 5px;
-
-    font-size: 11px;
-
-    text-align: center;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: rgba(7, 13, 24, 0.6);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    font-size: 12px;
+    color: var(--text-dim);
 }
 
-@media (
-    max-width: 900px
-) {
-
-    .viewer {
-
-        flex-direction: column;
-    }
-
-    .metrics {
-
-        width: 100%;
-    }
-
-}
+.status.ok { border-color: rgba(74, 217, 145, 0.4); color: #9ff0c4; background: rgba(74, 217, 145, 0.08); }
+.status.err { border-color: rgba(230, 92, 92, 0.4); color: #f2b0b0; background: rgba(230, 92, 92, 0.08); }
 
 
-/* ==========================================================
-   PANEL DE CONFIGURACIÓN DE CÁMARA
-   ========================================================== */
+/* ---------- PANEL DE CONFIGURACIÓN DE CÁMARA ---------- */
 
 .cam-config {
-
     max-width: 1250px;
-
-    margin: 10px auto;
-
-    background: #242424;
-
-    border-radius: 10px;
-
-    padding: 0 15px;
-
-    text-align: left;
+    margin: 18px auto 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
+    padding: 0 20px;
 }
 
 .cam-config > summary {
-
     cursor: pointer;
-
-    padding: 14px 0;
-
-    font-size: 15px;
-
-    font-weight: bold;
-
+    padding: 18px 0;
+    font-size: 14px;
+    font-weight: 600;
     list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.cam-config > summary::-webkit-details-marker {
-
-    display: none;
-}
+.cam-config > summary::-webkit-details-marker { display: none; }
 
 .cam-config > summary::before {
-
-    content: "\25B8  ";
-
-    color: #888;
+    content: "\25B8";
+    color: var(--text-faint);
+    font-size: 11px;
 }
 
-.cam-config[open] > summary::before {
+.cam-config[open] > summary::before { content: "\25BE"; }
 
-    content: "\25BE  ";
-}
+.cam-config-body { padding-bottom: 20px; }
 
-.cam-config-body {
+.cam-config .lead { margin: 0 0 6px; }
 
-    padding-bottom: 15px;
-}
-
-.cam-config .section {
-
-    color: #7fd7ff;
-
-    font-size: 12px;
-
-    margin: 14px 0 6px;
-}
+.cam-config .section { color: var(--brand-bright); margin: 18px 0 6px; }
 
 .cam-prop {
-
     display: grid;
-
-    grid-template-columns: 1fr 150px auto;
-
-    gap: 10px;
-
+    grid-template-columns: 1fr 160px auto;
+    gap: 12px;
     align-items: center;
-
-    padding: 6px 0;
-
-    border-bottom: 1px solid #202020;
-
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line-soft);
     font-size: 13px;
 }
 
-.cam-prop small {
-
-    color: #888;
-
-    margin-left: 6px;
-}
-
-.cam-prop input,
-.cam-prop select {
-
-    width: 100%;
-
-    padding: 5px;
-
-    background: #181818;
-
-    color: white;
-
-    border: 1px solid #333;
-
-    border-radius: 4px;
-}
-
-.cam-prop .cam-apply {
-
-    padding: 5px 10px;
-
-    font-size: 12px;
-
-    cursor: pointer;
-}
+.cam-prop > div:first-child { color: var(--text); }
+.cam-prop small { color: var(--text-faint); margin-left: 6px; font-family: var(--mono); font-size: 11px; }
 
 .cam-prop .cam-msg {
-
     grid-column: 1 / -1;
-
     font-size: 11px;
-
-    color: #888;
-
-    min-height: 0;
+    color: var(--text-faint);
+    font-family: var(--mono);
 }
 
-.cam-prop .cam-msg.ok {
+.cam-prop .cam-msg.ok { color: #8be9b6; }
+.cam-prop .cam-msg.err { color: #efa3a3; }
 
-    color: #6bd06b;
+.cam-config .buttons { margin-top: 18px; }
+
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 960px) {
+    .viewer { flex-direction: column; }
+    .metrics { width: 100%; }
 }
 
-.cam-prop .cam-msg.err {
-
-    color: #e06b6b;
-}
-
-.cam-config .buttons {
-
-    margin-top: 14px;
+@media (max-width: 560px) {
+    .live { display: none; }
+    .cam-prop { grid-template-columns: 1fr 1fr; }
+    .page { padding: 24px 16px 60px; }
 }
 
 </style>
@@ -2796,10 +2788,26 @@ button {
 
 <body>
 
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="__MENU_URL__">
+            <span class="brand-mark">D</span>
+            <span>VISIÓN</span>
+        </a>
+        <div class="topbar-right">
+            <span class="live" id="liveDot"><span class="dot"></span><span id="liveText">conectando</span></span>
+            <a class="btn btn-sm" href="__MENU_URL__">Volver al menú</a>
+        </div>
+    </div>
+</header>
 
-<h1>
-DEMA - GE134GM + YOLO26-X
-</h1>
+<main class="page">
+
+<div class="page-head">
+    <p class="eyebrow">Cámara · GE134GM + YOLO26-X</p>
+    <h1 class="page-title">Visión</h1>
+    <p class="lead">Vídeo en vivo, parámetros de inferencia y configuración de la cámara.</p>
+</div>
 
 
 <!-- ========================================================
@@ -3137,13 +3145,17 @@ DEMA - GE134GM + YOLO26-X
 
         <div class="buttons">
 
-            <button onclick="saveCameraConfig()">
+            <button class="btn btn-primary" onclick="saveCameraConfig()">
                 Guardar configuración
             </button>
 
-            <button onclick="reloadCameraConfig()">
+            <button class="btn" onclick="reloadCameraConfig()">
                 Recargar desde archivo
             </button>
+
+            <a class="btn" href="__MENU_URL__">
+                Volver al menú
+            </a>
 
         </div>
 
@@ -3497,6 +3509,8 @@ DEMA - GE134GM + YOLO26-X
 
 </div>
 
+
+</main>
 
 <script>
 
@@ -4028,6 +4042,16 @@ async function updateStatus() {
             await response.json();
 
 
+        const live = document.getElementById("liveDot");
+        if (live) {
+            const ok = data.camera_ready && data.model_ready;
+            live.classList.toggle("on", ok);
+            document.getElementById("liveText").innerText =
+                ok ? "en vivo"
+                   : (data.camera_ready ? "cargando modelo" : "sin cámara");
+        }
+
+
         cameraFps.innerText =
             data.camera_fps.toFixed(2)
             + " FPS";
@@ -4136,6 +4160,12 @@ async function updateStatus() {
 
         status.innerText =
             "Sin respuesta del servicio";
+
+        const live = document.getElementById("liveDot");
+        if (live) {
+            live.classList.remove("on");
+            document.getElementById("liveText").innerText = "sin conexión";
+        }
 
     }
 
@@ -4332,7 +4362,7 @@ function renderCamProps(data) {
                 + '<div><b>' + def.label + '</b><small>'
                 + (def.unit || "") + '</small></div>'
                 + '<div>' + camControlHtml(def, values[def.id]) + '</div>'
-                + '<button class="cam-apply" '
+                + '<button class="cam-apply btn btn-sm" '
                 + 'onclick="applyCamProp(\'' + def.id + '\')">Aplicar</button>'
                 + '<div class="cam-msg ' + msgCls + '">' + msg + '</div>'
                 + '</div>';
@@ -4576,9 +4606,9 @@ class CameraHandler(
         if path == "/":
 
             payload = (
-                HTML.encode(
-                    "utf-8"
-                )
+                HTML
+                .replace("__MENU_URL__", MENU_URL)
+                .encode("utf-8")
             )
 
             self.send_response(
