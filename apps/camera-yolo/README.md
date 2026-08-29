@@ -52,11 +52,16 @@ Notas de comportamiento de esta cámara (HT-GE134GM):
 ## Ejecutar — nativo (Windows, cámara real)
 
 ```bash
-C:/Users/dmore/anaconda3/envs/vision_leche/python.exe main.py
+run.bat
+#   o:  C:/Users/dmore/anaconda3/envs/vision_leche/python.exe main.py
 ```
 
-Requiere cámara MindVision + GPU NVIDIA + `yolo26x.pt`. Sin cámara, aborta en
-`CameraEnumerateDevice()` (esperado); la web sigue respondiendo.
+Requiere cámara MindVision + GPU NVIDIA + `yolo26x.pt`. El arranque tarda **~25 s**
+(init CUDA + carga YOLO) — hasta entonces `http://localhost:8090` da "conexión rechazada".
+Sin cámara, aborta en `CameraEnumerateDevice()` (esperado); la web sigue respondiendo.
+
+**Debe estar corriendo** para que el enlace "Visión" del web-shell (`:8000`) funcione:
+esa tarjeta solo abre `http://localhost:8090`, no arranca nada.
 
 ## Ejecutar — Docker (multi-arquitectura)
 
